@@ -27,8 +27,6 @@ int main(float argc, char* argv[]) {
         return -1;
     }
 
-    Renderer renderer(window, WIDTH, HEIGHT);
-
     // Create shapes
     auto shapes = std::make_shared<std::vector<Shape*>>(std::initializer_list<Shape*>{
         new Rectangle({100, 100,0},{0,0,0},{1,1,1}, 50, 50, 255, 0, 0),  // Red rectangle
@@ -36,6 +34,7 @@ int main(float argc, char* argv[]) {
         new Triangle({600, 400,0},{0,0,0},{1,1,1}, 60, 0, 0, 255)       // Blue triangle
     });
 
+    Renderer renderer(window, WIDTH, HEIGHT,shapes);
     bool running = true;
     SDL_Event event;
 

@@ -46,3 +46,5 @@ build_sdl:
 clean:
 	rm -rf $(BUILD_DIR)
 	if exist $(SDL_BUILD_DIR) rmdir /s /q $(SDL_BUILD_DIR)
+
+slim:$(BUILD_DIR) $(EXEC)

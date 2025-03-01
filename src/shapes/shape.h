@@ -2,10 +2,17 @@
 #define SHAPE_H
 
 #include <vector>
-#include "../renderer/renderer.h"
+#include <array>
+
+enum ShapeType {
+    CIRCLE = 1,
+    RECTANGLE = 2,
+    TRIANGLE = 3
+};
 
 class Shape {
 protected:
+    ShapeType shape_type;
     std::vector<float> pos; // Now includes z-index
     std::vector<float> orientation;
     std::vector<float> scale;
@@ -14,16 +21,14 @@ protected:
 public:
     Shape(std::vector<float> pos,std::vector<float> orientation,std::vector<float> scale,  uint8_t r, uint8_t g, uint8_t b)
         : pos(pos),orientation(orientation),scale(scale), r(r), g(g), b(b) {}
-
-    virtual ~Shape() = default;
-
-    virtual void draw(Renderer& renderer) = 0; // Pure virtual function
-    virtual void move(float dx, float dy, float dz) { 
+    ShapeType get_shape_type(){return shape_type;} ; 
+    ~Shape() {};
+    void move(float dx, float dy, float dz) { 
         pos[0] += dx; 
         pos[1] += dy; 
         pos[2] += dz; 
     } // Move shape in 3D space
-    virtual void move_to(float x, float y, float z) { 
+    void move_to(float x, float y, float z) { 
         pos[0] = x; 
         pos[1]= y; 
         pos[2]= z; 
@@ -31,6 +36,9 @@ public:
 
     std::vector<float> get_coords() { 
         return pos; 
+    }
+    std::array<uint8_t,3> get_color() { 
+        return {r, g, b}; 
     }
 };
 

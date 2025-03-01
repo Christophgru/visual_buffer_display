@@ -9,15 +9,14 @@ private:
 
 public:
     Rectangle(std::vector<float> pos,std::vector<float> orientation,std::vector<float> scale, float width, float height, uint8_t r, uint8_t g, uint8_t b)
-        : Shape(pos,orientation,scale, r, g, b), width(width), height(height) {}
+        : Shape(pos,orientation,scale, r, g, b), width(width), height(height) {shape_type=RECTANGLE;}
 
-    void draw(Renderer& renderer) override {
-        for (float i = pos[0]; i < pos[0] + width; ++i) {
-            for (float j = pos[1]; j < pos[1] + height; ++j) {
-                renderer.setPixel(i, j, r, g, b);
-            }
+        float get_width() {
+            return width;
         }
-    }
+        float get_height() {
+            return height;
+        }
 };
 
 #endif // RECTANGLE_H
