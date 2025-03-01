@@ -34,48 +34,56 @@ void Renderer::clearBuffer(uint32_t color) {
     std::fill(buffer.begin(), buffer.end(), color);
 }
 
+// Fill the buffer with a gradient from blue to grey
+void Renderer::fillGradient() {
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            uint8_t blue = 255 - (255 * y / height);
+            uint8_t grey = 255 * y / height;
+            setPixel(x, y, grey, grey, blue);
+        }
+    }
+}
+
 // Render the buffer to the screen
 void Renderer::render() {
-    int xpos=shapes->at(0)->get_coords().at(0);
-    int ypos=shapes->at(0)->get_coords().at(1);
-    int zpos=shapes->at(0)->get_coords().at(2);
+    fillGradient(); // Fill the buffer with the gradient before rendering
+
     for (Shape* shape : *shapes) {
-        std::array<uint8_t,3> colors = shape->get_color();
+        std::array<uint8_t, 3> colors = shape->get_color();
         uint8_t r = colors[0];
-        uint8_t g = colors[1]; 
+        uint8_t g = colors[1];
         uint8_t b = colors[2];
-        if (shape->get_shape_type()==RECTANGLE) {
+        if (shape->get_shape_type() == RECTANGLE) {
             auto rect = static_cast<Rectangle*>(shape);
-                auto pos = rect->get_coords();
-                auto width = rect->get_width();
-                auto height = rect->get_height();
-                for (float i = pos[0]; i < pos[0] + width; ++i) {
-                    for (float j = pos[1]; j < pos[1] + height; ++j) {
+            auto pos = rect->get_coords();
+            auto width = rect->get_width();
+            auto height = rect->get_height();
+            for (float i = pos[0]; i < pos[0] + width; ++i) {
+                for (float j = pos[1]; j < pos[1] + height; ++j) {
+                    setPixel(i, j, r, g, b);
+                }
+            }
+        } else if (auto circle = static_cast<Circle*>(shape)) {
+            auto pos = circle->get_coords();
+            auto radius = circle->get_radius();
+            for (float i = pos[0] - radius; i < pos[0] + radius; ++i) {
+                for (float j = pos[1] - radius; j < pos[1] + radius; ++j) {
+                    if (std::sqrt((i - pos[0]) * (i - pos[0]) + (j - pos[1]) * (j - pos[1])) <= radius) {
                         setPixel(i, j, r, g, b);
                     }
                 }
-            }else if (auto circle = static_cast<Circle*>(shape)) {
-                auto pos = circle->get_coords();
-                auto radius = circle->get_radius();
-                for (float i = pos[0] - radius; i < pos[0] + radius; ++i) {
-                    for (float j = pos[1] - radius; j < pos[1] + radius; ++j) {
-                        if (std::sqrt((i - pos[0]) * (i - pos[0]) + (j - pos[1]) * (j - pos[1])) <= radius) {
-                            setPixel(i, j, r, g, b);
-                        }
+            }
+        } else if (auto triangle = static_cast<Triangle*>(shape)) {
+            auto pos = triangle->get_coords();
+            auto size = triangle->get_size();
+            for (float i = pos[0]; i < pos[0] + size; ++i) {
+                for (float j = pos[1]; j < pos[1] + size; ++j) {
+                    if (i <= pos[0] + size && j <= pos[1] + size && j >= pos[1] + size - i) {
+                        setPixel(i, j, r, g, b);
                     }
                 }
             }
-            else if (auto triangle = static_cast<Triangle*>(shape)) {
-                auto pos = triangle->get_coords();
-                auto size = triangle->get_size();
-                for (float i = pos[0]; i < pos[0] + size; ++i) {
-                    for (float j = pos[1]; j < pos[1] + size; ++j) {
-                        if (i <= pos[0] + size && j <= pos[1] + size && j >= pos[1] + size - i) {
-                            setPixel(i, j, r, g, b);
-                        }
-                    }
-                }
-            
         }
     }
     SDL_UpdateTexture(texture, nullptr, buffer.data(), width * sizeof(uint32_t));

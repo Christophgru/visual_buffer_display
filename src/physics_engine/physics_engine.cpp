@@ -1,8 +1,9 @@
 #include "physics_engine.h"
+#include <iostream>
 
 void PhysicsEngine::update() {
-    
-    
+    try
+    {
         auto time= SDL_GetTicks();
         auto deltaTime = (time - lastMoveTime) / 1000.0f; // Time in seconds
         lastMoveTime = time;
@@ -18,4 +19,11 @@ void PhysicsEngine::update() {
             
         }
         
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    
+    
     }

@@ -25,6 +25,7 @@ public:
     std::vector<uint32_t> buffer; // Stores the RGB buffer
     int width, height;
     std::shared_ptr<std::vector<Shape *>> shapes;
+    void fillGradient();
 };
 
 #endif // RENDERER_H
