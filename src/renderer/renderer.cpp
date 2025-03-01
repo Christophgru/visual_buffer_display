@@ -39,3 +39,12 @@ void Renderer::render() {
 
     SDL_RenderPresent(renderer);
 }
+
+// Handle window resizing
+void Renderer::resize(int newWidth, int newHeight) {
+    width = newWidth;
+    height = newHeight;
+    buffer.resize(width * height, 0x000000FF); // Default black
+    SDL_DestroyTexture(texture);
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+}
