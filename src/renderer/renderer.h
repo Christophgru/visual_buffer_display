@@ -13,8 +13,7 @@ public:
     void clearBuffer(uint32_t color = 0x000000FF); // Clear buffer (default black)
     void render(); // Render the buffer
     void resize(int newWidth, int newHeight);
-
-private:
+    int getWindowWidth() ;
     SDL_Renderer* renderer;
     SDL_Texture* texture;
     std::vector<uint32_t> buffer; // Stores the RGB buffer

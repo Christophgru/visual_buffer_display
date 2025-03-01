@@ -48,3 +48,7 @@ void Renderer::resize(int newWidth, int newHeight) {
     SDL_DestroyTexture(texture);
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width, height);
 }
+
+int Renderer::getWindowWidth() {
+    return width;
+}

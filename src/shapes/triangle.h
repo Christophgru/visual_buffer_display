@@ -5,15 +5,15 @@
 
 class Triangle : public Shape {
 private:
-    int size;
+    float size;
 
 public:
-    Triangle(std::vector<int> pos, int size, uint8_t r, uint8_t g, uint8_t b)
-        : Shape(pos, r, g, b), size(size) {}
+    Triangle(std::vector<float> pos,std::vector<float> orientation,std::vector<float> scale, float size, uint8_t r, uint8_t g, uint8_t b)
+        : Shape(pos,orientation,scale, r, g, b), size(size) {}
 
     void draw(Renderer& renderer) override {
-        for (int i = 0; i < size; ++i) {
-            for (int j = 0; j <= i; ++j) { // Draw right-angled triangle
+        for (float i = 0; i < size; ++i) {
+            for (float j = 0; j <= i; ++j) { // Draw right-angled triangle
                 renderer.setPixel(pos[0] + j, pos[1] + i, r, g, b);
             }
         }
