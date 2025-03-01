@@ -3,7 +3,8 @@ CFLAGS := -std=c++17 -O2 -Wall -Iexternal/SDL/include -Iexternal/SDL/include/con
 LDFLAGS := -Lexternal/SDL/build -lSDL3
 
 SRC_DIR := src
-SRCS := $(SRC_DIR)/main.cpp $(SRC_DIR)/renderer/renderer.cpp
+SRCS := $(SRC_DIR)/main.cpp \
+		$(SRC_DIR)/renderer/renderer.cpp
 BUILD_DIR := build
 OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS)) 
 EXEC := $(BUILD_DIR)/buffer_display
