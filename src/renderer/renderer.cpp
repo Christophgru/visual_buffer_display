@@ -5,8 +5,8 @@
 #include <array>
 
 // Constructor: Initializes SDL Renderer and Texture
-Renderer::Renderer(SDL_Window* window, int width, int height, std::shared_ptr<std::vector<Shape*>> shapes)
-    : width(width), height(height), buffer(width * height, 0x000000FF) { // Default black
+Renderer::Renderer(SDL_Window* window, int width, int height, std::shared_ptr<std::vector<Shape*>> shapes, Camera camera)
+    : width(width), height(height), buffer(width * height, 0x000000FF),camera(camera) { // Default black
     renderer = SDL_CreateRenderer(window, NULL);
     this->shapes = shapes;
     if (!renderer) {
@@ -40,7 +40,7 @@ void Renderer::fillGradient() {
         for (int x = 0; x < width; ++x) {
             uint8_t blue = 255 - (255 * y / height);
             uint8_t grey = 255 * y / height;
-            setPixel(x, y, grey, grey, blue);
+            setPixel(x, y, 0, 0, 0);
         }
     }
 }
@@ -50,6 +50,7 @@ void Renderer::render() {
     fillGradient(); // Fill the buffer with the gradient before rendering
 
     for (Shape* shape : *shapes) {
+        //printf("Shape type: %d\n", shape->get_shape_type());
         std::array<uint8_t, 3> colors = shape->get_color();
         uint8_t r = colors[0];
         uint8_t g = colors[1];
@@ -64,7 +65,8 @@ void Renderer::render() {
                     setPixel(i, j, r, g, b);
                 }
             }
-        } else if (auto circle = static_cast<Circle*>(shape)) {
+        } else if (shape->get_shape_type() == CIRCLE) {
+            auto circle = static_cast<Circle*>(shape);
             auto pos = circle->get_coords();
             auto radius = circle->get_radius();
             for (float i = pos[0] - radius; i < pos[0] + radius; ++i) {
@@ -74,7 +76,8 @@ void Renderer::render() {
                     }
                 }
             }
-        } else if (auto triangle = static_cast<Triangle*>(shape)) {
+        } else if (shape->get_shape_type() == TRIANGLE) {
+            auto triangle = static_cast<Triangle*>(shape);
             auto pos = triangle->get_coords();
             auto size = triangle->get_size();
             for (float i = pos[0]; i < pos[0] + size; ++i) {
@@ -84,6 +87,26 @@ void Renderer::render() {
                     }
                 }
             }
+        }
+        else if (shape->get_shape_type() == VERTEX) {
+            auto vertex = static_cast<Vertex*>(shape);
+            auto pos = vertex->get_coords();
+            //printf("Vertex at %f, %f, %f\n", pos[0], pos[1],pos[2]);
+            std::vector<float> camera_orientation = camera.orientation;
+            //printf("Camera orientation: %f, %f, %f\n", camera_orientation[0], camera_orientation[1],camera_orientation[2]);
+            std::vector<float> camera_pos = camera.pos;
+            //printf("Camera pos: %f, %f, %f\n", camera_pos[0], camera_pos[1],camera_pos[2]);
+            float relative_elev=atan2(pos[2]-camera_pos[2],sqrt(pow(pos[0]-camera_pos[0],2)+pow(pos[1]-camera_pos[1],2)))*180/3.14159265359;
+            float relative_azimuth=-atan2(pos[1]-camera_pos[1],pos[0]-camera_pos[0])*180/3.14159265359+90;
+            //printf("Relative azimuth: %f, Relative elevation: %f\n", relative_azimuth, relative_elev);	
+            float y=height/2+ relative_elev/camera.fov_height_deg*height/1000;
+            float x=width/2+relative_azimuth/camera.fov_width_deg*width/1000;
+            for(int i=-2;i<4;i++){
+                for(int j=-2;j<4;j++){
+                    setPixel((int)x+i,(int)y+j, r, g, b);
+                }
+            }
+           // printf("Vertex at %f, %f, %f Displayed at %d %d height: %d, width: %d\n", pos[0], pos[1],pos[2],(int)x,(int)y,height,width);
         }
     }
     SDL_UpdateTexture(texture, nullptr, buffer.data(), width * sizeof(uint32_t));

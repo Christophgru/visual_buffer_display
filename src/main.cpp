@@ -8,6 +8,7 @@
 #include <iostream>
 #include <memory>
 #include "physics_engine/physics_engine.h"
+#include "camera/camera.h"
 
 int main(float argc, char* argv[]) {
     try {
@@ -33,8 +34,14 @@ int main(float argc, char* argv[]) {
         new Circle({400, 300,0},{0,0,0},{1,1,1}, 50, 0, 255, 0),         // Green circle
         new Triangle({600, 400,0},{0,0,0},{1,1,1}, 60, 0, 0, 255)       // Blue triangle
     });
-
-    Renderer renderer(window, WIDTH, HEIGHT,shapes);
+    for(float i=-5;i<=5;i++){
+        for(float j=-5;j<=5;j++){
+            shapes->push_back(new Vertex({i, 80,j},{0,0,0},{1,1,1}, 255, 255, 255)); // Yellow vertex
+        }
+    }
+        
+    Camera camera({0, 0, 0}, {0, 1, 0}, 40);
+    Renderer renderer(window, WIDTH, HEIGHT,shapes,camera);
     bool running = true;
     SDL_Event event;
 

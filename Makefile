@@ -5,7 +5,8 @@ LDFLAGS := -Lexternal/SDL/build -lSDL3
 SRC_DIR := src
 SRCS := $(SRC_DIR)/main.cpp \
 		$(SRC_DIR)/renderer/renderer.cpp \
-		$(SRC_DIR)/physics_engine/physics_engine.cpp
+		$(SRC_DIR)/physics_engine/physics_engine.cpp \
+		$(SRC_DIR)/camera/camera.cpp
 BUILD_DIR := build
 OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS)) 
 EXEC := $(BUILD_DIR)/buffer_display

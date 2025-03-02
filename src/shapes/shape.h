@@ -7,7 +7,8 @@
 enum ShapeType {
     CIRCLE = 1,
     RECTANGLE = 2,
-    TRIANGLE = 3
+    TRIANGLE = 3,
+    VERTEX = 4
 };
 
 class Shape {
