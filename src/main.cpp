@@ -36,10 +36,10 @@ int main(float argc, char* argv[]) {
         });
         for(float i=-5;i<=5;i++){
             for(float j=-5;j<=5;j++){
-                shapes->push_back(new Vertex({i, 80,j},{0,0,0},{1,1,1}, 255, 255, 255)); // Yellow vertex
+                shapes->push_back(new Vertex({i, 80,j},{0,0,0},{1,1,1}, (int)(255-i)%255,(int) (255+j)%255, (int)(255+i-j)%255)); // Yellow vertex
             }
         }
-        std::shared_ptr<std::vector<std::array<int,3>>> index_buffer=std::make_shared<std::vector<std::array<int,3>>>(std::vector<std::array<int,3>>{{3,4,14}});   
+        std::shared_ptr<std::vector<std::array<int,3>>> index_buffer=std::make_shared<std::vector<std::array<int,3>>>(std::vector<std::array<int,3>>{{3,10,87}});   
 
         auto camera = std::make_shared<Camera>(std::vector<float>{0, 0, 0}, std::vector<float>{0, 100, 0}, 40);
         Renderer renderer(window, WIDTH, HEIGHT, shapes, camera,index_buffer);

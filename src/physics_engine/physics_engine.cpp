@@ -11,6 +11,9 @@ void PhysicsEngine::update() {
         for (auto shape : *shapes) {
             if(shape->get_shape_type()==VERTEX){
                 shape->move(0, -5*deltaTime,0);
+                if(shape->get_coords().at(1)<0){
+                    shape->move_to(shape->get_coords().at(0), 100.0f,shape->get_coords().at(2));
+                }
             }else{
                 shape->move(5*deltaTime, 5*deltaTime,0);
             };

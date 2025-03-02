@@ -29,9 +29,13 @@ public:
     int width, height;
     
 private:
-void drawTriangle(const std::array<float, 2>& v0,
+void drawTriangleColor(const std::array<float, 2>& v0,
     const std::array<float, 2>& v1,
-    const std::array<float, 2>& v2);
+    const std::array<float, 2>& v2,
+    const std::array<uint8_t, 3>& c0,
+    const std::array<uint8_t, 3>& c1,
+    const std::array<uint8_t, 3>& c2);
+    void drawVerticalLine(int x, int yStart, int yEnd, const std::array<uint8_t, 3>& color);
     void fillGradient();
     std::array<float,2> project(std::vector<float> pos,std::vector<float> camera_orientation,std::vector<float> camera_pos);
     std::shared_ptr<std::vector<Shape *>> shapes;

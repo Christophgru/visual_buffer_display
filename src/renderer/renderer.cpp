@@ -120,7 +120,7 @@ void Renderer::render() {
         }
         //increment over index_buffer of type std::shared_ptr<std::vector<std::array<int,3>>> index_buffer;
         for(std::array<int,3> index: *index_buffer){
-            printf("Index: %d, %d, %d\n", index[0], index[1], index[2]);
+            //printf("Index: %d, %d, %d\n", index[0], index[1], index[2]);
             //find shape with shape->get_id()==index[0]
             Shape* shape1;
             Shape* shape2;
@@ -140,12 +140,12 @@ void Renderer::render() {
              std::array<float,2> coords1=project(shape1->get_coords(),camera->orientation,camera->pos);
              std::array<uint8_t, 3> colors1 = shape1->get_color();
              std::array<float,2> coords2=project(shape2->get_coords(),camera->orientation,camera->pos);  
-             std::array<uint8_t, 3> colors2 = shape1->get_color();
+             std::array<uint8_t, 3> colors2 = shape2->get_color();
              std::array<float,2> coords3=project(shape3->get_coords(),camera->orientation,camera->pos);
-             std::array<uint8_t, 3> colors3 = shape1->get_color();
+             std::array<uint8_t, 3> colors3 = shape3->get_color();
              
-             drawTriangle(coords1,coords2,coords3);
-             printf("coords1: %f, %f, coords2: %f, %f, coords3: %f, %f\n", coords1[0], coords1[1],coords2[0], coords2[1],coords3[0], coords3[1]);
+             drawTriangleColor(coords1,coords2,coords3,colors1,colors2,colors3);
+             //printf("coords1: %f, %f, coords2: %f, %f, coords3: %f, %f\n", coords1[0], coords1[1],coords2[0], coords2[1],coords3[0], coords3[1]);
         }
              
            
@@ -162,43 +162,66 @@ void Renderer::render() {
 
 
 // Function to draw a triangle given three 2D points.
-void Renderer::drawTriangle(const std::array<float, 2>& v0,
-    const std::array<float, 2>& v1,
-    const std::array<float, 2>& v2)
+void Renderer::drawVerticalLine(int x, int yStart, int yEnd, const std::array<uint8_t, 3>& color) {
+    if (yStart > yEnd) std::swap(yStart, yEnd);
+    for (int y = yStart; y <= yEnd; ++y) {
+        setPixel(x, y, color[0], color[1], color[2]);
+    }
+}
+
+// Function to draw a triangle with color interpolation.
+void Renderer::drawTriangleColor(const std::array<float, 2>& v0,
+                       const std::array<float, 2>& v1,
+                       const std::array<float, 2>& v2,
+                       const std::array<uint8_t, 3>& c0,
+                       const std::array<uint8_t, 3>& c1,
+                       const std::array<uint8_t, 3>& c2)
 {
-// Compute the bounding box of the triangle.
+    // Compute the triangle's bounding box.
     float minX = std::min({v0[0], v1[0], v2[0]});
     float maxX = std::max({v0[0], v1[0], v2[0]});
     float minY = std::min({v0[1], v1[1], v2[1]});
     float maxY = std::max({v0[1], v1[1], v2[1]});
 
-    // Calculate the denominator once.
+    // Compute twice the triangle area (denom) used in barycentrics.
     float denom = ((v1[1] - v2[1]) * (v0[0] - v2[0]) + (v2[0] - v1[0]) * (v0[1] - v2[1]));
     const float epsilon = 1e-6f;
     if (std::fabs(denom) < epsilon) {
-        // The triangle is degenerate (area is close to 0), so skip drawing.
-        //printf("Degenerate triangle: area is zero or nearly zero.\n");
+        // Degenerate triangle: the vertices are nearly collinear.
+        printf("Degenerate triangle: area is zero or nearly zero.\n");
+        // Since all x-values (or y-values) may be the same or nearly the same,
+        // round them to integer pixel positions.
+        int x = static_cast<int>(std::round(v0[0]));  // Assuming vertical line for degenerate case.
+        int y0 = static_cast<int>(std::round(v0[1]));
+        int y1 = static_cast<int>(std::round(v1[1]));
+        int y2 = static_cast<int>(std::round(v2[1]));
+        int yMin = std::min({y0, y1, y2});
+        int yMax = std::max({y0, y1, y2});
+        // For the degenerate case, we can simply use one of the endpoint colors.
+        drawVerticalLine(x, yMin, yMax, c0);
         return;
     }
 
     // Iterate over each pixel within the bounding box.
     for (int y = static_cast<int>(std::floor(minY)); y <= static_cast<int>(std::ceil(maxY)); ++y) {
-    for (int x = static_cast<int>(std::floor(minX)); x <= static_cast<int>(std::ceil(maxX)); ++x) {
-    // Compute barycentric coordinates.
-    float w0 = ((v1[1] - v2[1]) * (x - v2[0]) + (v2[0] - v1[0]) * (y - v2[1])) / denom;
-    float w1 = ((v2[1] - v0[1]) * (x - v2[0]) + (v0[0] - v2[0]) * (y - v2[1])) / denom;
-    float w2 = 1.0f - w0 - w1;
+        for (int x = static_cast<int>(std::floor(minX)); x <= static_cast<int>(std::ceil(maxX)); ++x) {
+            // Compute barycentric coordinates for the current pixel.
+            float w0 = ((v1[1] - v2[1]) * (x - v2[0]) + (v2[0] - v1[0]) * (y - v2[1])) / denom;
+            float w1 = ((v2[1] - v0[1]) * (x - v2[0]) + (v0[0] - v2[0]) * (y - v2[1])) / denom;
+            float w2 = 1.0f - w0 - w1;
 
-    // Debug: print barycentrics if needed
-    // printf("w0: %f, w1: %f, w2: %f\n", w0, w1, w2);
-
-    // Check if the point (x, y) is inside the triangle.
-    if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
-        setPixel((int)x, (int)y,255,255,255);
-    }
-    }
+            // If the point lies inside the triangle (including edges).
+            if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+                // Interpolate the color using barycentric weights.
+                uint8_t r = static_cast<uint8_t>(std::round(w0 * c0[0] + w1 * c1[0] + w2 * c2[0]));
+                uint8_t g = static_cast<uint8_t>(std::round(w0 * c0[1] + w1 * c1[1] + w2 * c2[1]));
+                uint8_t b = static_cast<uint8_t>(std::round(w0 * c0[2] + w1 * c1[2] + w2 * c2[2]));
+                setPixel(x, y, r, g, b);
+            }
+        }
     }
 }
+
 
 
 
