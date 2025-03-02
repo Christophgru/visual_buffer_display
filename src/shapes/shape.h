@@ -28,7 +28,7 @@ protected:
     uint8_t r, g, b; // Color
 
 public:
-    const int id_counter;
+    const int id;
     Shape(std::vector<float> pos,std::vector<float> orientation,std::vector<float> scale,  uint8_t r, uint8_t g, uint8_t b);
     ShapeType get_shape_type(){return shape_type;}
     ~Shape() {};

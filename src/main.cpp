@@ -39,12 +39,10 @@ int main(float argc, char* argv[]) {
                 shapes->push_back(new Vertex({i, 80,j},{0,0,0},{1,1,1}, 255, 255, 255)); // Yellow vertex
             }
         }
-        for( auto shape : *shapes){
-            std::cout<<shape->id_counter<<std::endl;
-        }
+        std::shared_ptr<std::vector<std::array<int,3>>> index_buffer=std::make_shared<std::vector<std::array<int,3>>>(std::vector<std::array<int,3>>{{3,4,14}});   
 
         auto camera = std::make_shared<Camera>(std::vector<float>{0, 0, 0}, std::vector<float>{0, 100, 0}, 40);
-        Renderer renderer(window, WIDTH, HEIGHT, shapes, camera);
+        Renderer renderer(window, WIDTH, HEIGHT, shapes, camera,index_buffer);
         bool running = true;
         SDL_Event event;
 
