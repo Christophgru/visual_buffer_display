@@ -5,7 +5,7 @@
 #include <array>
 
 // Constructor: Initializes SDL Renderer and Texture
-Renderer::Renderer(SDL_Window* window, int width, int height, std::shared_ptr<std::vector<Shape*>> shapes, Camera camera)
+Renderer::Renderer(SDL_Window* window, int width, int height, std::shared_ptr<std::vector<Shape*>> shapes, std::shared_ptr<Camera> camera)
     : width(width), height(height), buffer(width * height, 0x000000FF),camera(camera) { // Default black
     renderer = SDL_CreateRenderer(window, NULL);
     this->shapes = shapes;
@@ -92,15 +92,17 @@ void Renderer::render() {
             auto vertex = static_cast<Vertex*>(shape);
             auto pos = vertex->get_coords();
             //printf("Vertex at %f, %f, %f\n", pos[0], pos[1],pos[2]);
-            std::vector<float> camera_orientation = camera.orientation;
+            std::vector<float> camera_orientation = camera->orientation;
             //printf("Camera orientation: %f, %f, %f\n", camera_orientation[0], camera_orientation[1],camera_orientation[2]);
-            std::vector<float> camera_pos = camera.pos;
+            std::vector<float> camera_pos = camera->pos;
             //printf("Camera pos: %f, %f, %f\n", camera_pos[0], camera_pos[1],camera_pos[2]);
+            float camara_elev=atan2(camera_orientation[2],sqrt(pow(camera_orientation[0],2)+pow(camera_orientation[1],2)))*180/3.14159265359;
+            float camera_azimuth=-atan2(camera_orientation[1],camera_orientation[0])*180/3.14159265359+90;
             float relative_elev=atan2(pos[2]-camera_pos[2],sqrt(pow(pos[0]-camera_pos[0],2)+pow(pos[1]-camera_pos[1],2)))*180/3.14159265359;
             float relative_azimuth=-atan2(pos[1]-camera_pos[1],pos[0]-camera_pos[0])*180/3.14159265359+90;
             //printf("Relative azimuth: %f, Relative elevation: %f\n", relative_azimuth, relative_elev);	
-            float y=height/2+ relative_elev/camera.fov_height_deg*height/1000;
-            float x=width/2+relative_azimuth/camera.fov_width_deg*width/1000;
+            float y=height/2+ (relative_elev+camara_elev)/camera->fov_height_deg*height/1000;
+            float x=width/2+(relative_azimuth+camera_azimuth)/camera->fov_width_deg*width/1000;
             for(int i=-2;i<4;i++){
                 for(int j=-2;j<4;j++){
                     setPixel((int)x+i,(int)y+j, r, g, b);

@@ -10,8 +10,9 @@ private:
     std::shared_ptr<std::vector<Shape*>> shapes;
     Renderer& renderer;
     Uint64 lastMoveTime=SDL_GetTicks();
+    std::shared_ptr<Camera> camera;
 public:
-    PhysicsEngine(std::shared_ptr<std::vector<Shape*>> shapes, Renderer& renderer) : shapes(shapes), renderer(renderer) {
+    PhysicsEngine(std::shared_ptr<std::vector<Shape*>> shapes, Renderer& renderer, std::shared_ptr<Camera> camera) : camera(camera), shapes(shapes), renderer(renderer) {
         // Initialize the physics engine
     }
     ~PhysicsEngine() {

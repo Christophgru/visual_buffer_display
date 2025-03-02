@@ -13,7 +13,7 @@
 
 class Renderer {
 public:
-    Renderer(SDL_Window* window, int width, int height,std::shared_ptr<std::vector<Shape *>> shapes, Camera camera);
+    Renderer(SDL_Window* window, int width, int height,std::shared_ptr<std::vector<Shape *>> shapes, std::shared_ptr<Camera> camera);
     ~Renderer();
 
     void setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b); // Set individual pixel
@@ -28,7 +28,7 @@ public:
     int width, height;
     std::shared_ptr<std::vector<Shape *>> shapes;
     void fillGradient();
-    Camera camera;
+    std::shared_ptr<Camera> camera;
 };
 
 #endif // RENDERER_H
