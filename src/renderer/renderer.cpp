@@ -50,7 +50,7 @@ void Renderer::render() {
     fillGradient(); // Fill the buffer with the gradient before rendering
 
     for (Shape* shape : *shapes) {
-        //printf("Shape type: %d\n", shape->get_shape_type());
+        printf("Shape type: %d\n", shape->get_shape_type());
         std::array<uint8_t, 3> colors = shape->get_color();
         uint8_t r = colors[0];
         uint8_t g = colors[1];

@@ -3,6 +3,9 @@
 
 #include <vector>
 #include <array>
+#include <exception>
+#include <iostream>
+#include <memory>
 
 enum ShapeType {
     CIRCLE = 1,
@@ -12,6 +15,11 @@ enum ShapeType {
 };
 
 class Shape {
+    private :
+    
+    //generate a const id that is unique for each shape
+    static int next_id;
+    
 protected:
     ShapeType shape_type;
     std::vector<float> pos; // Now includes z-index
@@ -20,9 +28,9 @@ protected:
     uint8_t r, g, b; // Color
 
 public:
-    Shape(std::vector<float> pos,std::vector<float> orientation,std::vector<float> scale,  uint8_t r, uint8_t g, uint8_t b)
-        : pos(pos),orientation(orientation),scale(scale), r(r), g(g), b(b) {}
-    ShapeType get_shape_type(){return shape_type;} ; 
+    const int id_counter;
+    Shape(std::vector<float> pos,std::vector<float> orientation,std::vector<float> scale,  uint8_t r, uint8_t g, uint8_t b);
+    ShapeType get_shape_type(){return shape_type;}
     ~Shape() {};
     void move(float dx, float dy, float dz) { 
         pos[0] += dx; 

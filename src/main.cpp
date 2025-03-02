@@ -39,6 +39,9 @@ int main(float argc, char* argv[]) {
                 shapes->push_back(new Vertex({i, 80,j},{0,0,0},{1,1,1}, 255, 255, 255)); // Yellow vertex
             }
         }
+        for( auto shape : *shapes){
+            std::cout<<shape->id_counter<<std::endl;
+        }
 
         auto camera = std::make_shared<Camera>(std::vector<float>{0, 0, 0}, std::vector<float>{0, 100, 0}, 40);
         Renderer renderer(window, WIDTH, HEIGHT, shapes, camera);
