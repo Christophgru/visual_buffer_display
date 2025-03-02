@@ -163,12 +163,17 @@ void Renderer::render() {
 
 // Function to draw a triangle given three 2D points.
 void Renderer::drawVerticalLine(int x, int yStart, int yEnd, const std::array<uint8_t, 3>& color) {
-    if (yStart > yEnd) std::swap(yStart, yEnd);
+    if (yStart > yEnd)
+        std::swap(yStart, yEnd);
     for (int y = yStart; y <= yEnd; ++y) {
         setPixel(x, y, color[0], color[1], color[2]);
     }
 }
-
+inline float edgeFunc(float px, float py,
+    const std::array<float,2>& a,
+    const std::array<float,2>& b) {
+return (px - a[0]) * (b[1] - a[1]) - (py - a[1]) * (b[0] - a[0]);
+}
 // Function to draw a triangle with color interpolation.
 void Renderer::drawTriangleColor(const std::array<float, 2>& v0,
                        const std::array<float, 2>& v1,
@@ -177,47 +182,92 @@ void Renderer::drawTriangleColor(const std::array<float, 2>& v0,
                        const std::array<uint8_t, 3>& c1,
                        const std::array<uint8_t, 3>& c2)
 {
-    // Compute the triangle's bounding box.
-    float minX = std::min({v0[0], v1[0], v2[0]});
-    float maxX = std::max({v0[0], v1[0], v2[0]});
-    float minY = std::min({v0[1], v1[1], v2[1]});
-    float maxY = std::max({v0[1], v1[1], v2[1]});
+   // Compute the signed triangle area.
+    auto edgeFunc = [](float px, float py,
+                       const std::array<float,2>& a,
+                       const std::array<float,2>& b) -> float {
+        return (px - a[0]) * (b[1] - a[1]) - (py - a[1]) * (b[0] - a[0]);
+    };
 
-    // Compute twice the triangle area (denom) used in barycentrics.
-    float denom = ((v1[1] - v2[1]) * (v0[0] - v2[0]) + (v2[0] - v1[0]) * (v0[1] - v2[1]));
+    float area = edgeFunc(v0[0], v0[1], v1, v2);
     const float epsilon = 1e-6f;
-    if (std::fabs(denom) < epsilon) {
-        // Degenerate triangle: the vertices are nearly collinear.
+    if (std::fabs(area) < epsilon) {
+        // Degenerate triangle: fallback to a simple line.
         printf("Degenerate triangle: area is zero or nearly zero.\n");
-        // Since all x-values (or y-values) may be the same or nearly the same,
-        // round them to integer pixel positions.
-        int x = static_cast<int>(std::round(v0[0]));  // Assuming vertical line for degenerate case.
+        int x = static_cast<int>(std::round(v0[0]));
         int y0 = static_cast<int>(std::round(v0[1]));
         int y1 = static_cast<int>(std::round(v1[1]));
         int y2 = static_cast<int>(std::round(v2[1]));
         int yMin = std::min({y0, y1, y2});
         int yMax = std::max({y0, y1, y2});
-        // For the degenerate case, we can simply use one of the endpoint colors.
-        drawVerticalLine(x, yMin, yMax, c0);
+        // For simplicity, use the first color.
+        for (int y = yMin; y <= yMax; ++y) {
+            if (x >= 0 && x < width && y >= 0 && y < height)
+                buffer[y * width + x] = (c0[0] << 24) | (c0[1] << 16) | (c0[2] << 8) | 0xFF;
+        }
         return;
     }
+    float invArea = 1.0f / area;
 
-    // Iterate over each pixel within the bounding box.
-    for (int y = static_cast<int>(std::floor(minY)); y <= static_cast<int>(std::ceil(maxY)); ++y) {
-        for (int x = static_cast<int>(std::floor(minX)); x <= static_cast<int>(std::ceil(maxX)); ++x) {
-            // Compute barycentric coordinates for the current pixel.
-            float w0 = ((v1[1] - v2[1]) * (x - v2[0]) + (v2[0] - v1[0]) * (y - v2[1])) / denom;
-            float w1 = ((v2[1] - v0[1]) * (x - v2[0]) + (v0[0] - v2[0]) * (y - v2[1])) / denom;
-            float w2 = 1.0f - w0 - w1;
+    // Compute bounding box of the triangle.
+    float minXf = std::min({ v0[0], v1[0], v2[0] });
+    float maxXf = std::max({ v0[0], v1[0], v2[0] });
+    float minYf = std::min({ v0[1], v1[1], v2[1] });
+    float maxYf = std::max({ v0[1], v1[1], v2[1] });
+    int minX = static_cast<int>(std::floor(minXf));
+    int maxX = static_cast<int>(std::ceil(maxXf));
+    int minY = static_cast<int>(std::floor(minYf));
+    int maxY = static_cast<int>(std::ceil(maxYf));
 
-            // If the point lies inside the triangle (including edges).
-            if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
-                // Interpolate the color using barycentric weights.
-                uint8_t r = static_cast<uint8_t>(std::round(w0 * c0[0] + w1 * c1[0] + w2 * c2[0]));
-                uint8_t g = static_cast<uint8_t>(std::round(w0 * c0[1] + w1 * c1[1] + w2 * c2[1]));
-                uint8_t b = static_cast<uint8_t>(std::round(w0 * c0[2] + w1 * c1[2] + w2 * c2[2]));
-                setPixel(x, y, r, g, b);
+    const float half = 0.5f; // Sample at pixel centers.
+
+    // Precompute x-derivatives for barycentrics.
+    float dw0_dx = (v2[1] - v1[1]) * invArea;
+    float dw1_dx = (v0[1] - v2[1]) * invArea;
+    float dw2_dx = (v1[1] - v0[1]) * invArea;
+
+    // Loop over each scanline.
+    for (int y = minY; y <= maxY; ++y) {
+        float py = y + half;
+        float px = minX + half;
+
+        // Compute edge functions at the start of the row.
+        float E0 = (px - v1[0]) * (v2[1] - v1[1]) - (py - v1[1]) * (v2[0] - v1[0]);
+        float E1 = (px - v2[0]) * (v0[1] - v2[1]) - (py - v2[1]) * (v0[0] - v2[0]);
+        float E2 = (px - v0[0]) * (v1[1] - v0[1]) - (py - v0[1]) * (v1[0] - v0[0]);
+
+        // Convert to barycentrics.
+        float w0 = E0 * invArea;
+        float w1 = E1 * invArea;
+        float w2 = E2 * invArea;
+
+        // If the row is completely outside the screen, skip it.
+        if (y < 0 || y >= height) {
+            // Still update the barycentrics for the row, but don't write pixels.
+            for (int x = minX; x <= maxX; ++x) {
+                w0 += dw0_dx;
+                w1 += dw1_dx;
+                w2 += dw2_dx;
             }
+            continue;
+        }
+
+        for (int x = minX; x <= maxX; ++x) {
+            // Only draw pixels inside the triangle.
+            if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+                if (x >= 0 && x < width) {
+                    // Interpolate the color.
+                    uint8_t r = static_cast<uint8_t>(std::round(w0 * c0[0] + w1 * c1[0] + w2 * c2[0]));
+                    uint8_t g = static_cast<uint8_t>(std::round(w0 * c0[1] + w1 * c1[1] + w2 * c2[1]));
+                    uint8_t b = static_cast<uint8_t>(std::round(w0 * c0[2] + w1 * c1[2] + w2 * c2[2]));
+                    // Compute the buffer index and write the color (RGBA, with alpha = 0xFF).
+                    buffer[y * width + x] = (r << 24) | (g << 16) | (b << 8) | 0xFF;
+                }
+            }
+            // Increment the barycentrics along the row.
+            w0 += dw0_dx;
+            w1 += dw1_dx;
+            w2 += dw2_dx;
         }
     }
 }
