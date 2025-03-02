@@ -23,16 +23,13 @@ void main() {
 )";
 
 const char* fragmentShaderSource = R"(
-#version 330 core
-in vec3 fragColor;
-out vec4 outColor;
-void main() {
-    // Example: mix a blue and grey gradient based on y-coordinate (normalized)
-    float factor = gl_FragCoord.y / 600.0; // assuming window height of 600; adjust as needed
-    vec3 gradientColor = mix(vec3(0.0, 0.0, 1.0), vec3(0.5, 0.5, 0.5), factor);
-    outColor = vec4(gradientColor * fragColor, 1.0); // combine with shape color if desired
-}
-)";
+    #version 330 core
+    in vec3 fragColor;
+    out vec4 outColor;
+    void main() {
+        outColor = vec4(fragColor, 1.0);
+    }
+    )";
 
 // Utility function to compile shaders and link a program.
 GLuint Renderer::createShaderProgram(const char* vertexSource, const char* fragmentSource) {
@@ -93,7 +90,7 @@ Renderer::Renderer(SDL_Window* window, int width, int height,
     glViewport(0, 0, width, height);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+    glEnable(GL_PROGRAM_POINT_SIZE);
     // Compile and link the shader program.
     shaderProgram = createShaderProgram(vertexShaderSource, fragmentShaderSource);
     

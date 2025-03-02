@@ -23,9 +23,6 @@ public:
              std::shared_ptr<std::vector<std::array<int, 3>>> index_buffer);
     ~Renderer();
 
-    // Software rendering functions (if still needed)
-    void setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b);
-    void clearBuffer(uint32_t color = 0x000000FF);
     
     // Render function that now uses OpenGL for accelerated rendering
     void render();
@@ -40,15 +37,6 @@ public:
     int width, height;
     
 private:
-    // Helper functions for software rendering
-    void drawTriangleColor(const std::array<float, 2>& v0,
-                           const std::array<float, 2>& v1,
-                           const std::array<float, 2>& v2,
-                           const std::array<uint8_t, 3>& c0,
-                           const std::array<uint8_t, 3>& c1,
-                           const std::array<uint8_t, 3>& c2);
-    void drawVerticalLine(int x, int yStart, int yEnd, const std::array<uint8_t, 3>& color);
-    void fillGradient();
     std::array<float, 2> project(std::vector<float> pos,
                                  std::vector<float> camera_orientation,
                                  std::vector<float> camera_pos);
