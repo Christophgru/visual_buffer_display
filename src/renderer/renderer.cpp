@@ -70,7 +70,7 @@ void Renderer::render() {
         uint8_t g = colors[1];
         uint8_t b = colors[2];
         if (shape->get_shape_type() == RECTANGLE) {
-            auto rect = static_cast<Rectangle*>(shape);
+            auto rect = static_cast<Rect*>(shape);
             auto pos = rect->get_coords();
             auto width = rect->get_width();
             auto height = rect->get_height();

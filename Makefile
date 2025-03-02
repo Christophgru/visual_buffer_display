@@ -1,6 +1,6 @@
 CC := g++
 CFLAGS := -std=c++17 -O2 -Wall -Iexternal/SDL/include -Iexternal/SDL/include/config -Isrc
-LDFLAGS := -Lexternal/SDL/build -lSDL3
+LDFLAGS := -Lexternal/SDL/build -lSDL3 -lopengl32
 
 SRC_DIR := src
 SRCS := $(SRC_DIR)/main.cpp \
