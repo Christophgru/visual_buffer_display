@@ -1,287 +1,229 @@
 #include "Renderer.h"
-#include <cstring> // For memset
-#include <stdio.h>
+#include <SDL3/SDL_opengl.h>
 #include <iostream>
-#include <array>
-#include <cmath>
 #include <vector>
+#include <cmath>
+#include <array>
 #include <algorithm>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
-// Constructor: Initializes SDL Renderer and Texture
+// Vertex and Fragment Shader source code
+const char* vertexShaderSource = R"(
+#version 330 core
+layout(location = 0) in vec2 position;
+layout(location = 1) in vec3 color;
+out vec3 fragColor;
+void main() {
+    fragColor = color;
+    gl_Position = vec4(position, 0.0, 1.0);
+}
+)";
+
+const char* fragmentShaderSource = R"(
+#version 330 core
+in vec3 fragColor;
+out vec4 outColor;
+void main() {
+    outColor = vec4(fragColor, 1.0);
+}
+)";
+
+// Utility function to compile shaders and link a program.
+GLuint Renderer::createShaderProgram(const char* vertexSource, const char* fragmentSource) {
+    // Compile vertex shader
+    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &vertexSource, NULL);
+    glCompileShader(vertexShader);
+    GLint status;
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &status);
+    if (!status) {
+        char buffer[512];
+        glGetShaderInfoLog(vertexShader, 512, NULL, buffer);
+        std::cerr << "Vertex shader compilation error: " << buffer << std::endl;
+    }
+    
+    // Compile fragment shader
+    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &fragmentSource, NULL);
+    glCompileShader(fragmentShader);
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &status);
+    if (!status) {
+        char buffer[512];
+        glGetShaderInfoLog(fragmentShader, 512, NULL, buffer);
+        std::cerr << "Fragment shader compilation error: " << buffer << std::endl;
+    }
+    
+    // Link shaders into a program
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vertexShader);
+    glAttachShader(program, fragmentShader);
+    glBindAttribLocation(program, 0, "position");
+    glBindAttribLocation(program, 1, "color");
+    glLinkProgram(program);
+    glGetProgramiv(program, GL_LINK_STATUS, &status);
+    if (!status) {
+        char buffer[512];
+        glGetProgramInfoLog(program, 512, NULL, buffer);
+        std::cerr << "Shader program linking error: " << buffer << std::endl;
+    }
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+    return program;
+}
+
 Renderer::Renderer(SDL_Window* window, int width, int height, 
-    std::shared_ptr<std::vector<Shape*>> shapes, std::shared_ptr<Camera> camera,std::shared_ptr<std::vector<std::array<int,3>>> index_buffer)
-    :index_buffer(index_buffer), width(width), height(height), buffer(width * height, 0x000000FF),camera(camera) { // Default black
-    renderer = SDL_CreateRenderer(window, NULL);
-    this->shapes = shapes;
-    if (!renderer) {
-        SDL_Log("Renderer could not be created! SDL_Error: %s", SDL_GetError());
+    std::shared_ptr<std::vector<Shape*>> shapes,
+    std::shared_ptr<Camera> camera,
+    std::shared_ptr<std::vector<std::array<int,3>>> index_buffer)
+    : width(width), height(height), shapes(shapes), camera(camera), index_buffer(index_buffer)
+{
+    // Assume an OpenGL context has already been created (with SDL_WINDOW_OPENGL)
+    GLenum err = glewInit();
+    if (GLEW_OK != err) {
+        std::cerr << "Error initializing GLEW: " << glewGetErrorString(err) << std::endl;
     }
+    
+    // Set the viewport and enable blending for transparency if needed.
+    glViewport(0, 0, width, height);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Create a texture to store the pixel data
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+    // Compile and link the shader program.
+    shaderProgram = createShaderProgram(vertexShaderSource, fragmentShaderSource);
+    
+    // Generate a Vertex Array Object and a Vertex Buffer Object.
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
 }
 
-// Destructor: Cleans up SDL resources
-Renderer::~Renderer() {
-    SDL_DestroyTexture(texture);
-    SDL_DestroyRenderer(renderer);
-}
-
-// Set an individual pixel in the buffer
-void Renderer::setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
-    if (x < 0 || x >= width || y < 0 || y >= height) return; // Out-of-bounds check
-    buffer[y * width + x] = (r << 24) | (g << 16) | (b << 8) | 0xFF; // RGBA format
-}
-
-// Clear the buffer to a specific color
-void Renderer::clearBuffer(uint32_t color) {
-    std::fill(buffer.begin(), buffer.end(), color);
-}
-
-// Fill the buffer with a gradient from blue to grey
-void Renderer::fillGradient() {
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            uint8_t blue = 255 - (255 * y / height);
-            uint8_t grey = 255 * y / height;
-            setPixel(x, y, 0, 0, 0);
-        }
-    }
-}
-std::array<float,2> Renderer::project(std::vector<float> pos,std::vector<float> camera_orientation,std::vector<float> camera_pos){
-    float camara_elev=atan2(camera_orientation[2],sqrt(pow(camera_orientation[0],2)+pow(camera_orientation[1],2)))*180/3.14159265359;
-    float camera_azimuth=-atan2(camera_orientation[1],camera_orientation[0])*180/3.14159265359+90;
-    float relative_elev=atan2(pos[2]-camera_pos[2],sqrt(pow(pos[0]-camera_pos[0],2)+pow(pos[1]-camera_pos[1],2)))*180/3.14159265359;
-    float relative_azimuth=-atan2(pos[1]-camera_pos[1],pos[0]-camera_pos[0])*180/3.14159265359+90;
-    //printf("Relative azimuth: %f, Relative elevation: %f\n", relative_azimuth, relative_elev);	
-    float y=height/2+ (relative_elev+camara_elev)/camera->fov_height_deg*height/1000;
-    float x=width/2+(relative_azimuth+camera_azimuth)/camera->fov_width_deg*width/1000;
-    return {x,y}; 
-}
-
-// Render the buffer to the screen
+// In this OpenGL version, we build a vertex array (positions + colors) from the shapes.
+// For simplicity, we assume all shapes are rendered as triangles in normalized device coordinates.
+// You’ll need to convert your shape coordinates (which are in screen space) into NDC.
 void Renderer::render() {
-    fillGradient(); // Fill the buffer with the gradient before rendering
+    // Clear the screen.
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    
+    glUseProgram(shaderProgram);
+
+    // Two separate containers: one for triangle-based shapes and one for vertices.
+    std::vector<float> triangleData;
+    std::vector<float> pointData;
 
     for (Shape* shape : *shapes) {
-        //printf("Shape type: %d\n", shape->get_shape_type());
+        // Get the common color data.
         std::array<uint8_t, 3> colors = shape->get_color();
-        uint8_t r = colors[0];
-        uint8_t g = colors[1];
-        uint8_t b = colors[2];
+        float r = colors[0] / 255.0f;
+        float g = colors[1] / 255.0f;
+        float b = colors[2] / 255.0f;
+
         if (shape->get_shape_type() == RECTANGLE) {
             auto rect = static_cast<Rect*>(shape);
             auto pos = rect->get_coords();
-            auto width = rect->get_width();
-            auto height = rect->get_height();
-            for (float i = pos[0]; i < pos[0] + width; ++i) {
-                for (float j = pos[1]; j < pos[1] + height; ++j) {
-                    setPixel(i, j, r, g, b);
-                }
-            }
-        } else if (shape->get_shape_type() == CIRCLE) {
+            float w = rect->get_width();
+            float h = rect->get_height();
+            float x = (pos[0] / width) * 2.0f - 1.0f;
+            float y = 1.0f - (pos[1] / height) * 2.0f;
+            float ndcW = (w / width) * 2.0f;
+            float ndcH = (h / height) * 2.0f;
+            // Two triangles for the rectangle.
+            // Triangle 1.
+            triangleData.insert(triangleData.end(), { x, y, r, g, b });
+            triangleData.insert(triangleData.end(), { x + ndcW, y, r, g, b });
+            triangleData.insert(triangleData.end(), { x, y - ndcH, r, g, b });
+            // Triangle 2.
+            triangleData.insert(triangleData.end(), { x + ndcW, y, r, g, b });
+            triangleData.insert(triangleData.end(), { x + ndcW, y - ndcH, r, g, b });
+            triangleData.insert(triangleData.end(), { x, y - ndcH, r, g, b });
+        }
+        else if (shape->get_shape_type() == CIRCLE) {
             auto circle = static_cast<Circle*>(shape);
             auto pos = circle->get_coords();
-            auto radius = circle->get_radius();
-            for (float i = pos[0] - radius; i < pos[0] + radius; ++i) {
-                for (float j = pos[1] - radius; j < pos[1] + radius; ++j) {
-                    if (std::sqrt((i - pos[0]) * (i - pos[0]) + (j - pos[1]) * (j - pos[1])) <= radius) {
-                        setPixel(i, j, r, g, b);
-                    }
-                }
+            float radius = circle->get_radius();
+            float cx = (pos[0] / width) * 2.0f - 1.0f;
+            float cy = 1.0f - (pos[1] / height) * 2.0f;
+            float ndcRadiusX = (radius / width) * 2.0f;
+            float ndcRadiusY = (radius / height) * 2.0f;
+            const int segments = 32;
+            // Use a triangle fan for the circle.
+            for (int i = 0; i < segments; ++i) {
+                float theta1 = (2.0f * M_PI * i) / segments;
+                float theta2 = (2.0f * M_PI * (i + 1)) / segments;
+                // Center vertex.
+                triangleData.insert(triangleData.end(), { cx, cy, r, g, b });
+                // First edge vertex.
+                triangleData.insert(triangleData.end(), { cx + ndcRadiusX * cos(theta1), cy + ndcRadiusY * sin(theta1), r, g, b });
+                // Second edge vertex.
+                triangleData.insert(triangleData.end(), { cx + ndcRadiusX * cos(theta2), cy + ndcRadiusY * sin(theta2), r, g, b });
             }
-        } else if (shape->get_shape_type() == TRIANGLE) {
+        }
+        else if (shape->get_shape_type() == TRIANGLE) {
             auto triangle = static_cast<Triangle*>(shape);
             auto pos = triangle->get_coords();
-            auto size = triangle->get_size();
-            for (float i = pos[0]; i < pos[0] + size; ++i) {
-                for (float j = pos[1]; j < pos[1] + size; ++j) {
-                    if (i <= pos[0] + size && j <= pos[1] + size && j >= pos[1] + size - i) {
-                        setPixel(i, j, r, g, b);
-                    }
-                }
-            }
+            float size = triangle->get_size();
+            float x = (pos[0] / width) * 2.0f - 1.0f;
+            float y = 1.0f - (pos[1] / height) * 2.0f;
+            float ndcSizeX = (size / width) * 2.0f;
+            float ndcSizeY = (size / height) * 2.0f;
+            // For a simple equilateral triangle.
+            triangleData.insert(triangleData.end(), { x, y, r, g, b });
+            triangleData.insert(triangleData.end(), { x + ndcSizeX, y, r, g, b });
+            triangleData.insert(triangleData.end(), { x + ndcSizeX / 2, y - ndcSizeY, r, g, b });
         }
         else if (shape->get_shape_type() == VERTEX) {
+            // Handle vertices by drawing them as points.
             auto vertex = static_cast<Vertex*>(shape);
             auto pos = vertex->get_coords();
-            //printf("Vertex at %f, %f, %f\n", pos[0], pos[1],pos[2]);
-            std::vector<float> camera_orientation = camera->orientation;
-            //printf("Camera orientation: %f, %f, %f\n", camera_orientation[0], camera_orientation[1],camera_orientation[2]);
-            std::vector<float> camera_pos = camera->pos;
-            //printf("Camera pos: %f, %f, %f\n", camera_pos[0], camera_pos[1],camera_pos[2]);
-            std::array<float,2> coords=project(pos,camera_orientation,camera_pos);
-            for(int i=-2;i<4;i++){
-                for(int j=-2;j<4;j++){
-                    setPixel((int)coords[0]+i,(int)coords[1]+j, r, g, b);
-                }
-            }
-           // printf("Vertex at %f, %f, %f Displayed at %d %d height: %d, width: %d\n", pos[0], pos[1],pos[2],(int)x,(int)y,height,width);
+            float x = (pos[0] / width) * 2.0f - 1.0f;
+            float y = 1.0f - (pos[1] / height) * 2.0f;
+            pointData.insert(pointData.end(), { x, y, r, g, b });
         }
-        //increment over index_buffer of type std::shared_ptr<std::vector<std::array<int,3>>> index_buffer;
-        for(std::array<int,3> index: *index_buffer){
-            //printf("Index: %d, %d, %d\n", index[0], index[1], index[2]);
-            //find shape with shape->get_id()==index[0]
-            Shape* shape1;
-            Shape* shape2;
-            Shape* shape3;
-            for(Shape* shape: *shapes){
-                if(shape->id==index[0]){
-                    shape1=shape;
-                }else if(shape->id==index[1]){
-                    shape2=shape;}
-                else if(shape->id==index[2]){
-                    shape3=shape;
-                }
-            }
-            if(!shape1 || !shape2 || !shape3){
-                throw std::runtime_error("Shape not found");
-            }
-             std::array<float,2> coords1=project(shape1->get_coords(),camera->orientation,camera->pos);
-             std::array<uint8_t, 3> colors1 = shape1->get_color();
-             std::array<float,2> coords2=project(shape2->get_coords(),camera->orientation,camera->pos);  
-             std::array<uint8_t, 3> colors2 = shape2->get_color();
-             std::array<float,2> coords3=project(shape3->get_coords(),camera->orientation,camera->pos);
-             std::array<uint8_t, 3> colors3 = shape3->get_color();
-             
-             drawTriangleColor(coords1,coords2,coords3,colors1,colors2,colors3);
-             //printf("coords1: %f, %f, coords2: %f, %f, coords3: %f, %f\n", coords1[0], coords1[1],coords2[0], coords2[1],coords3[0], coords3[1]);
-        }
-             
-           
-        
+        // Extend similarly for other shape types if needed...
     }
-    SDL_UpdateTexture(texture, nullptr, buffer.data(), width * sizeof(uint32_t));
+    
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    
+    // Draw triangle-based shapes.
+    if (!triangleData.empty()) {
+        glBufferData(GL_ARRAY_BUFFER, triangleData.size() * sizeof(float), triangleData.data(), GL_DYNAMIC_DRAW);
+        // Set up attribute pointers.
+        GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
+        glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(posAttrib);
+        GLint colAttrib = glGetAttribLocation(shaderProgram, "color");
+        glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
+        glEnableVertexAttribArray(colAttrib);
+        glDrawArrays(GL_TRIANGLES, 0, triangleData.size() / 5);
+    }
 
-    SDL_RenderClear(renderer);
-    SDL_RenderTexture(renderer, texture, nullptr, nullptr); // SDL3 function replaces SDL_RenderCopy
-
-    SDL_RenderPresent(renderer);
+    // Draw vertices as points.
+    if (!pointData.empty()) {
+        // Set an appropriate point size.
+        glPointSize(5.0f);
+        glBufferData(GL_ARRAY_BUFFER, pointData.size() * sizeof(float), pointData.data(), GL_DYNAMIC_DRAW);
+        // Setup attribute pointers again.
+        GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
+        glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(posAttrib);
+        GLint colAttrib = glGetAttribLocation(shaderProgram, "color");
+        glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
+        glEnableVertexAttribArray(colAttrib);
+        glDrawArrays(GL_POINTS, 0, pointData.size() / 5);
+    }
+    
+    // Unbind VAO.
+    glBindVertexArray(0);
 }
 
 
-
-// Function to draw a triangle given three 2D points.
-void Renderer::drawVerticalLine(int x, int yStart, int yEnd, const std::array<uint8_t, 3>& color) {
-    if (yStart > yEnd)
-        std::swap(yStart, yEnd);
-    for (int y = yStart; y <= yEnd; ++y) {
-        setPixel(x, y, color[0], color[1], color[2]);
-    }
-}
-inline float edgeFunc(float px, float py,
-    const std::array<float,2>& a,
-    const std::array<float,2>& b) {
-return (px - a[0]) * (b[1] - a[1]) - (py - a[1]) * (b[0] - a[0]);
-}
-// Function to draw a triangle with color interpolation.
-void Renderer::drawTriangleColor(const std::array<float, 2>& v0,
-                       const std::array<float, 2>& v1,
-                       const std::array<float, 2>& v2,
-                       const std::array<uint8_t, 3>& c0,
-                       const std::array<uint8_t, 3>& c1,
-                       const std::array<uint8_t, 3>& c2)
-{
-   // Compute the signed triangle area.
-    auto edgeFunc = [](float px, float py,
-                       const std::array<float,2>& a,
-                       const std::array<float,2>& b) -> float {
-        return (px - a[0]) * (b[1] - a[1]) - (py - a[1]) * (b[0] - a[0]);
-    };
-
-    float area = edgeFunc(v0[0], v0[1], v1, v2);
-    const float epsilon = 1e-6f;
-    if (std::fabs(area) < epsilon) {
-        // Degenerate triangle: fallback to a simple line.
-        printf("Degenerate triangle: area is zero or nearly zero.\n");
-        int x = static_cast<int>(std::round(v0[0]));
-        int y0 = static_cast<int>(std::round(v0[1]));
-        int y1 = static_cast<int>(std::round(v1[1]));
-        int y2 = static_cast<int>(std::round(v2[1]));
-        int yMin = std::min({y0, y1, y2});
-        int yMax = std::max({y0, y1, y2});
-        // For simplicity, use the first color.
-        for (int y = yMin; y <= yMax; ++y) {
-            if (x >= 0 && x < width && y >= 0 && y < height)
-                buffer[y * width + x] = (c0[0] << 24) | (c0[1] << 16) | (c0[2] << 8) | 0xFF;
-        }
-        return;
-    }
-    float invArea = 1.0f / area;
-
-    // Compute bounding box of the triangle.
-    float minXf = std::min({ v0[0], v1[0], v2[0] });
-    float maxXf = std::max({ v0[0], v1[0], v2[0] });
-    float minYf = std::min({ v0[1], v1[1], v2[1] });
-    float maxYf = std::max({ v0[1], v1[1], v2[1] });
-    int minX = static_cast<int>(std::floor(minXf));
-    int maxX = static_cast<int>(std::ceil(maxXf));
-    int minY = static_cast<int>(std::floor(minYf));
-    int maxY = static_cast<int>(std::ceil(maxYf));
-
-    const float half = 0.5f; // Sample at pixel centers.
-
-    // Precompute x-derivatives for barycentrics.
-    float dw0_dx = (v2[1] - v1[1]) * invArea;
-    float dw1_dx = (v0[1] - v2[1]) * invArea;
-    float dw2_dx = (v1[1] - v0[1]) * invArea;
-
-    // Loop over each scanline.
-    for (int y = minY; y <= maxY; ++y) {
-        float py = y + half;
-        float px = minX + half;
-
-        // Compute edge functions at the start of the row.
-        float E0 = (px - v1[0]) * (v2[1] - v1[1]) - (py - v1[1]) * (v2[0] - v1[0]);
-        float E1 = (px - v2[0]) * (v0[1] - v2[1]) - (py - v2[1]) * (v0[0] - v2[0]);
-        float E2 = (px - v0[0]) * (v1[1] - v0[1]) - (py - v0[1]) * (v1[0] - v0[0]);
-
-        // Convert to barycentrics.
-        float w0 = E0 * invArea;
-        float w1 = E1 * invArea;
-        float w2 = E2 * invArea;
-
-        // If the row is completely outside the screen, skip it.
-        if (y < 0 || y >= height) {
-            // Still update the barycentrics for the row, but don't write pixels.
-            for (int x = minX; x <= maxX; ++x) {
-                w0 += dw0_dx;
-                w1 += dw1_dx;
-                w2 += dw2_dx;
-            }
-            continue;
-        }
-
-        for (int x = minX; x <= maxX; ++x) {
-            // Only draw pixels inside the triangle.
-            if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
-                if (x >= 0 && x < width) {
-                    // Interpolate the color.
-                    uint8_t r = static_cast<uint8_t>(std::round(w0 * c0[0] + w1 * c1[0] + w2 * c2[0]));
-                    uint8_t g = static_cast<uint8_t>(std::round(w0 * c0[1] + w1 * c1[1] + w2 * c2[1]));
-                    uint8_t b = static_cast<uint8_t>(std::round(w0 * c0[2] + w1 * c1[2] + w2 * c2[2]));
-                    // Compute the buffer index and write the color (RGBA, with alpha = 0xFF).
-                    buffer[y * width + x] = (r << 24) | (g << 16) | (b << 8) | 0xFF;
-                }
-            }
-            // Increment the barycentrics along the row.
-            w0 += dw0_dx;
-            w1 += dw1_dx;
-            w2 += dw2_dx;
-        }
-    }
-}
-
-
-
-
-// Handle window resizing
 void Renderer::resize(int newWidth, int newHeight) {
     width = newWidth;
     height = newHeight;
-    buffer.resize(width * height, 0x000000FF); // Default black
-    SDL_DestroyTexture(texture);
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+    // Update the viewport to the new window size.
+    glViewport(0, 0, width, height);
 }
 
 int Renderer::getWindowWidth() {
@@ -289,4 +231,10 @@ int Renderer::getWindowWidth() {
 }
 int Renderer::getWindowHeight() {
     return height;
+}
+
+Renderer::~Renderer() {
+    glDeleteProgram(shaderProgram);
+    glDeleteBuffers(1, &VBO);
+    glDeleteVertexArrays(1, &VAO);
 }

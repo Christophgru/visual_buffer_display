@@ -1,18 +1,22 @@
 CC := g++
-CFLAGS := -std=c++17 -O2 -Wall -Iexternal/SDL/include -Iexternal/SDL/include/config -Isrc
-LDFLAGS := -Lexternal/SDL/build -lSDL3 -lopengl32
+CFLAGS := -std=c++17 -O2 -Wall -DGLEW_STATIC -Iexternal/SDL/include -Iexternal/SDL/include/config -Iexternal/glew/include -Isrc
+
+LDFLAGS := -Lexternal/SDL/build -lSDL3 -Lexternal/glew/lib -lglew32s -lopengl32
+LDFLAGS := -Lexternal/SDL/build -lSDL3 -Lexternal/glew/lib -lglew32s -lopengl32
+
+
 
 SRC_DIR := src
 SRCS := $(SRC_DIR)/main.cpp \
-		$(SRC_DIR)/renderer/renderer.cpp \
-		$(SRC_DIR)/physics_engine/physics_engine.cpp \
-		$(SRC_DIR)/camera/camera.cpp \
-		$(SRC_DIR)/shapes/shape.cpp
+        $(SRC_DIR)/renderer/renderer.cpp \
+        $(SRC_DIR)/physics_engine/physics_engine.cpp \
+        $(SRC_DIR)/camera/camera.cpp \
+        $(SRC_DIR)/shapes/shape.cpp
 BUILD_DIR := build
-OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS)) 
+OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS))
 EXEC := $(BUILD_DIR)/buffer_display
 
-# SDL2 build settings
+# SDL build settings
 SDL_BUILD_DIR := external/SDL/build
 SDL_LIB_DIR := $(SDL_BUILD_DIR)/lib
 
@@ -49,4 +53,4 @@ clean:
 	rm -rf $(BUILD_DIR)
 	if exist $(SDL_BUILD_DIR) rmdir /s /q $(SDL_BUILD_DIR)
 
-slim:$(BUILD_DIR) $(EXEC)
+slim: $(BUILD_DIR) $(EXEC)

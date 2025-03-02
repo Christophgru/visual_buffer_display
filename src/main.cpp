@@ -1,3 +1,7 @@
+#define GLEW_STATIC
+
+#include <windows.h>
+#include <GL/glew.h>  // Must be included before any other GL headers.
 #include "SDL3/SDL.h"
 #include "SDL3/SDL_opengl.h" // Include OpenGL functions
 #include "renderer/renderer.h"
@@ -12,6 +16,8 @@
 #include "camera/camera.h"
 
 int main(int argc, char* argv[]) {
+    printf("Hello, World!\n");
+
     try {
         int WIDTH = 800;
         int HEIGHT = 600;
