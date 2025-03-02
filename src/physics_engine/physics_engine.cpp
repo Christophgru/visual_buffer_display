@@ -5,12 +5,12 @@ void PhysicsEngine::update() {
     try
     {
         auto time= SDL_GetTicks();
-        auto deltaTime = (time - lastMoveTime) / 1000.0f; // Time in seconds
+        auto deltaTime = (time - lastMoveTime) / 1000.0f*20.0f; // Time in seconds
         lastMoveTime = time;
         camera->orientation={camera->orientation.at(0),camera->orientation.at(1),camera->orientation.at(2)};
         for (auto shape : *shapes) {
             if(shape->get_shape_type()==VERTEX){
-                shape->move(0, -5*deltaTime,0);
+                shape->move(0, -deltaTime,0);
                 if(shape->get_coords().at(1)<0){
                     shape->move_to(shape->get_coords().at(0), 100.0f,shape->get_coords().at(2));
                 }
