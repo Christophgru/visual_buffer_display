@@ -1,8 +1,7 @@
 CC := g++
 CFLAGS := -std=c++17 -O2 -Wall -DGLEW_STATIC -Iexternal/SDL/include -Iexternal/SDL/include/config -Iexternal/glew/include -Isrc
 
-LDFLAGS := -Lexternal/SDL/build -lSDL3 -Lexternal/glew/lib -lglew32s -lopengl32
-LDFLAGS := -Lexternal/SDL/build -lSDL3 -Lexternal/glew/lib -lglew32s -lopengl32
+LDFLAGS := -Lexternal/SDL/build -lSDL3 -Lexternal/glew/lib -lglew32s -lopengl32	
 
 
 
