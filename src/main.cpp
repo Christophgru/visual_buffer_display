@@ -14,6 +14,7 @@
 #include <memory>
 #include "physics_engine/physics_engine.h"
 #include "camera/camera.h"
+//#include <SDL_mouse_c.h>
 
 int main(int argc, char* argv[]) {
     printf("Hello, World!\n");
@@ -79,26 +80,33 @@ int main(int argc, char* argv[]) {
         uint32_t lastTime = SDL_GetTicks();
         uint32_t lastMoveTime = SDL_GetTicks();
         float frameCount = 0;
-        PhysicsEngine physicsEngine(shapes, renderer, camera);
+        PhysicsEngine physicsEngine(shapes, renderer, camera,{WIDTH,HEIGHT});
+        //SDL_SetRelativeMouseMode(true);
 
         while (running) {
             while (SDL_PollEvent(&event)) {
-                if (event.type == SDL_EVENT_QUIT) {
-                    running = false;
-                } else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
-                    WIDTH = event.window.data1;
-                    HEIGHT = event.window.data2;
-                    renderer.resize(WIDTH, HEIGHT);
-                    glViewport(0, 0, WIDTH, HEIGHT); // Update the OpenGL viewport on resize
+                
+                auto data=physicsEngine.handleEvent(event);
+                switch (std::get<0>(data))
+                {
+                    case terminate:
+                        running=false;
+                        break;
+                    case window_resize:
+                        WIDTH=std::get<1>(data).at(0);
+                        HEIGHT=std::get<1>(data).at(1);
+                        break;
+                    default:
+                        break;
                 }
             }
+            
 
             // Clear the screen using OpenGL (black background)
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
 
             uint32_t currentTime = SDL_GetTicks();
-            float deltaTime = (currentTime - lastMoveTime) / 1000.0f; // Time in seconds
             lastMoveTime = currentTime;
             
             physicsEngine.update();
