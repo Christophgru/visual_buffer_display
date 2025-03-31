@@ -9,7 +9,7 @@
       "stopAtEntry": false,
       "externalConsole": true,
       "cwd": "d:/bin/visual_buffer_display/src",
-      "program": "d:/bin/visual_buffer_display/src/build/Debug/outDebug",
+      "program": "d:/bin/visual_buffer_display/build/buffer_display.exe",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [

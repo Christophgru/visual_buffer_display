@@ -4,6 +4,7 @@
 #include <memory>
 #include "../shapes/shape.h"
 #include "../renderer/renderer.h"
+
 enum detected_actions{
     terminate,
     window_resize,

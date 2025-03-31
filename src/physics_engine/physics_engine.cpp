@@ -1,5 +1,6 @@
 #include "physics_engine.h"
 #include <iostream>
+constexpr double pi = 3.14159265358979323846;
 
 
 struct Vector3 {
@@ -68,12 +69,15 @@ Matrix3 create_rot_matrix(float pitch, float yaw, float roll) {
 
 
 void PhysicsEngine::update() {
-    try
-    {
+    try{   
         auto time= SDL_GetTicks();
-        auto deltaTime = (time - lastMoveTime) / 1000.0f*20.0f; // Time in seconds
+        float deltaTime = (time - lastMoveTime) / 1000.0f*20.0f; // Time in seconds
         lastMoveTime = time;
-        camera->orientation={camera->orientation.at(0),camera->orientation.at(1),camera->orientation.at(2)};
+        //float camera_decceleration=0.5f;
+        //printf("camera pos: %f %f %f \n",camera->pos.at(0),camera->pos.at(1),camera->pos.at(2));
+        //camera->pos={camera->pos.at(0)+deltaTime*camera->velocity.at(0),camera->pos.at(1),camera->pos.at(2)};
+        //float camera_decceleration_resulting=(1-1/pow((deltaTime*camera_decceleration+1.0f),2.0f));
+        //camera->velocity={camera->velocity.at(0)*camera_decceleration_resulting,camera->velocity.at(1)*camera_decceleration_resulting,camera->velocity.at(2)*camera_decceleration_resulting};
         for (auto shape : *shapes) {
             if(shape->get_shape_type()==VERTEX){
                 shape->move(0, -deltaTime,0);
@@ -119,6 +123,7 @@ void PhysicsEngine::update() {
                 if (event.key.scancode == SDL_SCANCODE_W) {
                     // Move forward or update camera position
                     printf("w detected\n");
+                    //camera->velocity={camera->velocity.at(0)+1.0f,camera->velocity.at(1),camera->velocity.at(2)};
                 } else if (event.key.scancode == SDL_SCANCODE_A) {
                     // Move left
                     printf("a detected\n");
@@ -153,25 +158,28 @@ void PhysicsEngine::update() {
                 // event.motion.xrel and event.motion.yrel for relative movement
                 // Update camera orientation or object interaction here.
                 if(mouse_clicked){
-                            float diff_x=event.motion.x-std::get<0>(mouse_movement);
-                            float diff_y=event.motion.y-std::get<1>(mouse_movement);
-                            printf("difference= %f %f \n",diff_x,diff_y);
-                            printf("orientation_before: %f %f %f \n",camera->orientation[0],camera->orientation[1],camera->orientation[2]);
-                            int display_width,display_height;
-                            display_width=std::get<0>(display_dimensions);
-                            display_height=std::get<1>(display_dimensions);
-                            printf("window size: %d %d \n",display_width,display_height);
-                            diff_x=diff_x/display_width;
-                            diff_y=diff_y/display_height;
-                            printf("difference= %f %f \n",diff_x,diff_y);
-                            Vector3 orientation={ camera->orientation[0],
-                                camera->orientation[1],
-                                camera->orientation[2] };
-                            Matrix3 rot_matrix = create_rot_matrix(diff_x, diff_y, 0.0f);
-                            Vector3 new_orientation = multiplyMatrixVector(rot_matrix, orientation);
+                    printf("camera orientation: %f %f %f \n",camera->orientation.at(0),camera->orientation.at(1),camera->orientation.at(2));
+                    float sensityfity=0.1;
+                    float diff_x=event.motion.x-std::get<0>(mouse_movement);
+                    float diff_y=event.motion.y-std::get<1>(mouse_movement);
+                    printf("difference= %f %f \n",diff_x,diff_y);
+                    printf("orientation_before: %f %f %f \n",camera->orientation[0],camera->orientation[1],camera->orientation[2]);
+                    int display_width,display_height;
+                    display_width=std::get<0>(display_dimensions);
+                    display_height=std::get<1>(display_dimensions);
+                    printf("window size: %d %d \n",display_width,display_height);
+                    diff_x=-diff_x/display_width*sensityfity/2.0f*pi;
+                    diff_y=diff_y/display_height*sensityfity/2.0f*pi;
+                    printf("difference= %f %f \n",diff_x,diff_y);
+                    Vector3 orientation={ camera->orientation[0],
+                    camera->orientation[1],
+                    camera->orientation[2] };
+                    Matrix3 rot_matrix = create_rot_matrix(diff_y, 0.0f, diff_x);
+                    Vector3 new_orientation = multiplyMatrixVector(rot_matrix, orientation);
 
-                            camera->orientation={new_orientation.x,new_orientation.y,new_orientation.z};
-                            printf("orientation_after: %f %f %f \n",camera->orientation[0],camera->orientation[1],camera->orientation[2]);
+                    camera->orientation={new_orientation.x,new_orientation.y,new_orientation.z};
+                    printf("orientation_after: %f %f %f \n",camera->orientation[0],camera->orientation[1],camera->orientation[2]);
+                    mouse_movement={event.motion.x,event.motion.y};
                             
                 }
                 break;

@@ -71,7 +71,8 @@ int main(int argc, char* argv[]) {
             std::make_shared<std::vector<std::array<int,3>>>(std::vector<std::array<int,3>>{{3, 10, 87}});
 
         auto camera = std::make_shared<Camera>(std::vector<float>{0, 0, 0},
-                                               std::vector<float>{0, 100, 0}, 40);
+                                               std::vector<float>{0, 100, 0},
+                                                40);
         // Initialize your renderer (ensure it is adapted to use OpenGL if needed)
         Renderer renderer(window, WIDTH, HEIGHT, shapes, camera, index_buffer);
 
