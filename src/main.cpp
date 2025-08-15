@@ -5,7 +5,7 @@
 #include "SDL3/SDL.h"
 #include "SDL3/SDL_opengl.h" // Include OpenGL functions
 #include "renderer/renderer.h"
-#include "shapes/shape.h"
+#include "shapes/object.h"
 #include "shapes/rectangle.h"
 #include "shapes/circle.h"
 #include "shapes/triangle.h"
@@ -51,37 +51,48 @@ int main(int argc, char* argv[]) {
         // Set up the OpenGL viewport
         glViewport(0, 0, WIDTH, HEIGHT);
         // Create shapes (your current objects)
-        auto shapes = std::make_shared<std::vector<Shape*>>(std::initializer_list<Shape*>{
+        auto objects = std::make_shared<std::vector<Object*>>(std::initializer_list<Object*>{
               // Red rectangle
             new Circle({400, 300,0},{0,0,0},{1,1,1}, 50, 0, 255, 0),         // Green circle
             new Triangle({600, 400,0},{0,0,0},{1,1,1}, 60, 0, 0, 255),       // Blue triangle
         });
-        shapes->push_back(
+        objects->push_back(
             new Rect({100, 100,0},{0,0,0},{1,1,1}, 50, 50, 255, 0, 0) // Red rectangle
             ); // Red Rect
-        for (float i = -5; i <= 5; i++) {
+        // Add a vertex that comes from straight ahead
+       /* for (float i = -5; i <= 5; i++) {
             for (float j = -5; j <= 5; j++) {
-                shapes->push_back(new Vertex({i, 80, j}, {0,0,0}, {1,1,1},
+                objects->push_back(new Vertex({i, 80, j}, {0,0,0}, {1,1,1},
                                                (int)(255 - i) % 255,
                                                (int)(255 + j) % 255,
-                                               (int)(255 + i - j) % 255)); // Yellow vertex
+                                               (int)(255 + i - j) % 255,"moving_over")); // Yellow vertex
+            }
+        }*/
+        // Add a vertex that tiles the floor
+        for (float i = -10; i <= 10; i+=0.1) {
+            for (float j = -10; j <= 10; j+=0.1) {
+                objects->push_back(new Vertex({i, j, -2}, {0,0,0}, {1,1,1},
+                                               (int)(255 - i) % 255,
+                                               (int)(255 + j) % 255,
+                                               (int)(255 + i - j) % 255,"floor")); // Yellow vertex
             }
         }
+        
         std::shared_ptr<std::vector<std::array<int,3>>> index_buffer =
-            std::make_shared<std::vector<std::array<int,3>>>(std::vector<std::array<int,3>>{{3, 10, 87}});
+            std::make_shared<std::vector<std::array<int,3>>>(std::vector<std::array<int,3>>{{3, 10, 87}});//*/
 
         auto camera = std::make_shared<Camera>(std::vector<float>{0, 0, 0},
                                                std::vector<float>{0, 100, 0},
                                                 40);
         // Initialize your renderer (ensure it is adapted to use OpenGL if needed)
-        Renderer renderer(window, WIDTH, HEIGHT, shapes, camera, index_buffer);
+        Renderer renderer(window, WIDTH, HEIGHT, objects, camera, index_buffer);
 
         bool running = true;
         SDL_Event event;
         uint32_t lastTime = SDL_GetTicks();
         uint32_t lastMoveTime = SDL_GetTicks();
         float frameCount = 0;
-        PhysicsEngine physicsEngine(shapes, renderer, camera,{WIDTH,HEIGHT});
+        PhysicsEngine physicsEngine(objects, renderer, camera,{WIDTH,HEIGHT});
         //SDL_SetRelativeMouseMode(true);
 
         while (running) {
@@ -112,7 +123,7 @@ int main(int argc, char* argv[]) {
             
             physicsEngine.update();
 
-            // Render your shapes using your renderer which should now be utilizing OpenGL calls
+            // Render your objects using your renderer which should now be utilizing OpenGL calls
             renderer.render();
 
             // Swap the OpenGL buffers

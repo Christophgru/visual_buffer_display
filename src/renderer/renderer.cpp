@@ -5,6 +5,7 @@
 #include <cmath>
 #include <array>
 #include <algorithm>
+#include "../math/math.h"
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -75,7 +76,7 @@ GLuint Renderer::createShaderProgram(const char* vertexSource, const char* fragm
 }
 
 Renderer::Renderer(SDL_Window* window, int width, int height, 
-    std::shared_ptr<std::vector<Shape*>> shapes,
+    std::shared_ptr<std::vector<Object*>> shapes,
     std::shared_ptr<Camera> camera,
     std::shared_ptr<std::vector<std::array<int,3>>> index_buffer)
     : width(width), height(height), shapes(shapes), camera(camera), index_buffer(index_buffer)
@@ -114,12 +115,18 @@ void Renderer::render() {
     std::vector<float> pointData;
 
     // Process each shape in the scene.
-    for (Shape* shape : *shapes) {
+    for (Object* shape : *shapes) {
         // Common color data.
+        
+        //print orientation of camera
+        shape->in_frame=is_point_in_frame(shape->get_coords(),camera->pos,camera->orientation);
+
+       
         std::array<uint8_t, 3> colors = shape->get_color();
         float r = colors[0] / 255.0f;
         float g = colors[1] / 255.0f;
         float b = colors[2] / 255.0f;
+      
 
         if (shape->get_shape_type() == RECTANGLE) {
             auto rect = static_cast<Rect*>(shape);
@@ -159,6 +166,9 @@ void Renderer::render() {
             }
         }
         else if (shape->get_shape_type() == TRIANGLE) {
+            if(shape->in_frame==false){
+                continue; // Skip shapes that are not in the frame
+            }
             auto triangle = static_cast<Triangle*>(shape);
             auto pos = triangle->get_coords();
             float size = triangle->get_size();
@@ -171,6 +181,9 @@ void Renderer::render() {
             triangleData.insert(triangleData.end(), { x + ndcSizeX / 2, y - ndcSizeY, r, g, b });
         }
         else if (shape->get_shape_type() == VERTEX) {
+            if(shape->in_frame==false){
+                continue; // Skip shapes that are not in the frame
+            }
             // For vertices, use the camera's orientation and position to project.
             auto vertex = static_cast<Vertex*>(shape);
             auto pos = vertex->get_coords();
@@ -187,11 +200,28 @@ void Renderer::render() {
     // Now process the index_buffer to draw triangles based on shape ids.
     // For each index triplet, find the corresponding shapes, project their coordinates,
     // and add a triangle with per-vertex colors.
+    hand_data_to_shader(triangleData, pointData);
+}
+
+bool Renderer::is_point_in_frame(const std::vector<float> point, const std::vector<float> camera_pos, const std::vector<float> camera_orientation) {
+    // Calculate the vector from the camera to the point
+    Vector3 camera_to_point = {point[0] - camera_pos[0], point[1] - camera_pos[1], point[2] - camera_pos[2]};
+    
+    // Calculate the dot product with the camera orientation vector
+    Vector3 orientation_vector = {camera_orientation[0], camera_orientation[1], camera_orientation[2]};
+    
+    float dot_product = dotProduct(camera_to_point, orientation_vector);
+    
+    // If the dot product is negative, the point is behind the camera
+    return 1;
+}
+
+void Renderer::hand_data_to_shader(std::vector<float> triangleData,    std::vector<float> pointData){
     for (const std::array<int,3>& index : *index_buffer) {
-        Shape* shape1 = nullptr;
-        Shape* shape2 = nullptr;
-        Shape* shape3 = nullptr;
-        for (Shape* shape : *shapes) {
+        Object* shape1 = nullptr;
+        Object* shape2 = nullptr;
+        Object* shape3 = nullptr;
+        for (Object* shape : *shapes) {
             if (shape->id == index[0])
                 shape1 = shape;
             else if (shape->id == index[1])
@@ -200,7 +230,7 @@ void Renderer::render() {
                 shape3 = shape;
         }
         if (!shape1 || !shape2 || !shape3) {
-            throw std::runtime_error("Shape not found for given index");
+            throw std::runtime_error("Object not found for given index");
         }
         // Project each shape's coordinate using the camera parameters.
         std::array<float,2> coords1 = project(shape1->get_coords(), camera->orientation, camera->pos);
@@ -258,7 +288,7 @@ std::array<float,2> Renderer::project(std::vector<float> pos, std::vector<float>
     // Calculate camera and relative angles (in degrees)
     float camara_elev = atan2(camera_orientation[2], sqrt(pow(camera_orientation[0],2) + pow(camera_orientation[1],2))) * 180.0f / M_PI;
     float camera_azimuth = -atan2(camera_orientation[1], camera_orientation[0]) * 180.0f / M_PI + 90.0f;
-    float relative_elev = atan2(pos[2] - camera_pos[2], sqrt(pow(pos[0] - camera_pos[0],2) + pow(pos[1] - camera_pos[1],2))) * 180.0f / M_PI;
+    float relative_elev = -atan2(pos[2] - camera_pos[2], sqrt(pow(pos[0] - camera_pos[0],2) + pow(pos[1] - camera_pos[1],2))) * 180.0f / M_PI;
     float relative_azimuth = -atan2(pos[1] - camera_pos[1], pos[0] - camera_pos[0]) * 180.0f / M_PI + 90.0f;
     
     // Calculate screen-space coordinates (in pixels)

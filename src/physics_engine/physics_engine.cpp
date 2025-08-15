@@ -1,11 +1,9 @@
 #include "physics_engine.h"
 #include <iostream>
+#include <math/math.h>
 constexpr double pi = 3.14159265358979323846;
 
 
-struct Vector3 {
-    float x, y, z;
-};
 
 struct Matrix3 {
     float data[3][3];
@@ -25,10 +23,7 @@ struct Matrix3 {
     }
 };
 
-// Dot product function for two 3-element vectors
-float dotProduct(const float a[3], const float b[3]) {
-    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
-}
+
 
 // Function to multiply a 3x3 matrix by a 3D vector
 Vector3 multiplyMatrixVector(const Matrix3& m, const Vector3& v) {
@@ -79,21 +74,23 @@ void PhysicsEngine::update() {
         //float camera_decceleration_resulting=(1-1/pow((deltaTime*camera_decceleration+1.0f),2.0f));
         //camera->velocity={camera->velocity.at(0)*camera_decceleration_resulting,camera->velocity.at(1)*camera_decceleration_resulting,camera->velocity.at(2)*camera_decceleration_resulting};
         for (auto shape : *shapes) {
+            // If shape is a vertex, update the position until its behind origin, then reset it to 100
             if(shape->get_shape_type()==VERTEX){
+              //use strcmp  if(shape->get_name()=="moving_over"){
+              if(shape->get_name().find("moving_over") != std::string::npos) {
+             
                 shape->move(0, -deltaTime,0);
                 if(shape->get_coords().at(1)<0){
                     shape->move_to(shape->get_coords().at(0), 100.0f,shape->get_coords().at(2));
-                }
+                }}
             }else{
                 shape->move(5*deltaTime, 5*deltaTime,0);
             };
             auto pos = shape->get_coords();
-            if (pos.at(0) > renderer.getWindowWidth()) {
-                shape->move_to(0, pos.at(1), pos.at(2));
-            }
-            if (pos.at(1) > renderer.getWindowHeight()) {
-                shape->move_to(pos.at(0), 0, pos.at(2));
-            }
+            // check if pos is behind the camera
+            // If the point is behind the camera, make it invisible
+            
+            // Update the renderer with the new position of the shape
             
         }
         
@@ -105,6 +102,7 @@ void PhysicsEngine::update() {
     
     
     }
+
 
     std::tuple<detected_actions,std::vector<int>> PhysicsEngine::handleEvent(SDL_Event event) {
         switch (event.type) {
@@ -121,18 +119,30 @@ void PhysicsEngine::update() {
             case SDL_EVENT_KEY_DOWN:
                 // Example: WASD movement
                 if (event.key.scancode == SDL_SCANCODE_W) {
-                    // Move forward or update camera position
+                    // Move forward or update camera position relative to caymera orientation
                     printf("w detected\n");
-                    //camera->velocity={camera->velocity.at(0)+1.0f,camera->velocity.at(1),camera->velocity.at(2)};
+                    auto new_position= calculate_new_position(camera->pos,camera->orientation,{0,1,0},1.0f);
+                   
+                    camera->pos =new_position;
+                    break;
                 } else if (event.key.scancode == SDL_SCANCODE_A) {
                     // Move left
                     printf("a detected\n");
+                    auto new_position= calculate_new_position(camera->pos,camera->orientation,{-1,0,0},1.0f);
+                   
+                    camera->pos =new_position;
                 } else if (event.key.scancode == SDL_SCANCODE_S) {
                     // Move backward
                     printf("s detected\n");
+                    auto new_position= calculate_new_position(camera->pos,camera->orientation,{0,-1,0},1.0f);
+                   
+                    camera->pos =new_position;
                 } else if (event.key.scancode == SDL_SCANCODE_D) {
                     // Move right
                     printf("d detected\n");	
+                    auto new_position= calculate_new_position(camera->pos,camera->orientation,{1,0,0},1.0f);
+                   
+                    camera->pos =new_position;
                 }
                 break;
                 case SDL_EVENT_MOUSE_BUTTON_DOWN:
@@ -159,7 +169,7 @@ void PhysicsEngine::update() {
                 // Update camera orientation or object interaction here.
                 if(mouse_clicked){
                     printf("camera orientation: %f %f %f \n",camera->orientation.at(0),camera->orientation.at(1),camera->orientation.at(2));
-                    float sensityfity=0.1;
+                    float sensityfity=3.0f; // Sensitivity factor for mouse movement
                     float diff_x=event.motion.x-std::get<0>(mouse_movement);
                     float diff_y=event.motion.y-std::get<1>(mouse_movement);
                     printf("difference= %f %f \n",diff_x,diff_y);
@@ -168,8 +178,8 @@ void PhysicsEngine::update() {
                     display_width=std::get<0>(display_dimensions);
                     display_height=std::get<1>(display_dimensions);
                     printf("window size: %d %d \n",display_width,display_height);
-                    diff_x=-diff_x/display_width*sensityfity/2.0f*pi;
-                    diff_y=diff_y/display_height*sensityfity/2.0f*pi;
+                    diff_x=diff_x/display_width*sensityfity/2.0f*pi;
+                    diff_y=-diff_y/display_height*sensityfity/2.0f*pi;
                     printf("difference= %f %f \n",diff_x,diff_y);
                     Vector3 orientation={ camera->orientation[0],
                     camera->orientation[1],
@@ -190,4 +200,19 @@ void PhysicsEngine::update() {
         }
         
         return {no_action,{0}};
+    }
+
+    std::vector<float> PhysicsEngine::calculate_new_position(std::vector<float> pos, std::vector<float> orientation, std::vector<float> direction, float speed) {
+        // Calculate the new position based on the current position, orientation, direction, and speed
+        //get resulting delta dist from orientation and direction
+        float heading = atan2(orientation[1], orientation[0]); // Calculate the heading angle in radians
+        // Calculate the new direction based on the orientation
+        
+        float delta_direction_x =  direction[0] * sin(heading) - direction[1] * cos(heading);
+        float delta_direction_y =  direction[0] * cos(heading) + direction[1] * sin(heading);
+        float new_x = pos[0] + delta_direction_x * speed;
+        float new_y = pos[1] + delta_direction_y * speed; 
+        float new_z = pos[2]; // Assuming no change in z-axis for simplicity
+
+        return {new_x, new_y, new_z};
     }

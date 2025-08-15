@@ -8,7 +8,7 @@
 #include <vector>
 #include <memory>
 #include <array>
-#include "../shapes/shape.h"
+#include "../shapes/object.h"
 #include "../shapes/rectangle.h"
 #include "../shapes/circle.h"
 #include "../shapes/triangle.h"
@@ -18,7 +18,7 @@
 class Renderer {
 public:
     Renderer(SDL_Window* window, int width, int height, 
-             std::shared_ptr<std::vector<Shape*>> shapes, 
+             std::shared_ptr<std::vector<Object*>> shapes, 
              std::shared_ptr<Camera> camera,
              std::shared_ptr<std::vector<std::array<int, 3>>> index_buffer);
     ~Renderer();
@@ -37,12 +37,14 @@ public:
     int width, height;
     
 private:
+bool is_point_in_frame(const std::vector<float> point, const std::vector<float> camera_pos, const std::vector<float> camera_orientation);
+void hand_data_to_shader(std::vector<float> triangleData,    std::vector<float> pointData);
     std::array<float, 2> project(std::vector<float> pos,
                                  std::vector<float> camera_orientation,
                                  std::vector<float> camera_pos);
     
     // Data shared with the rest of your project
-    std::shared_ptr<std::vector<Shape*>> shapes;
+    std::shared_ptr<std::vector<Object*>> shapes;
     std::shared_ptr<std::vector<std::array<int, 3>>> index_buffer;
     std::shared_ptr<Camera> camera;
 

@@ -1,14 +1,14 @@
-#include "shape.h"
+#include "object.h"
 #include <cmath>
 #include <cstdint>
 
-class Vertex : public Shape {
+class Vertex : public Object {
 
 
 
 public:
-    Vertex(std::vector<float> pos,std::vector<float> orientation,std::vector<float> scale, uint8_t r, uint8_t g, uint8_t b)
-        : Shape(pos,orientation,scale, r, g, b)  {shape_type=VERTEX;}
+    Vertex(std::vector<float> pos,std::vector<float> orientation,std::vector<float> scale, uint8_t r, uint8_t g, uint8_t b,std::string name="Vertex")
+        : Object(pos,orientation,scale, r, g, b,name)  {shape_type=VERTEX;}
 
 };
 

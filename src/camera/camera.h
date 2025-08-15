@@ -8,6 +8,7 @@ private:
 public:
     std::vector<float> pos; // Now includes z-index
     std::vector<float> orientation;
+    std::vector<float> velocity={0.0f,0.0f,0.0f}; // Velocity vector
     //1000 pixels = 1 unit
     float sensorwidth=36.0f;
     float sensorheight=24.0f;
