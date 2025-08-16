@@ -5,10 +5,7 @@
 #include <cmath>
 #include <array>
 #include <algorithm>
-#include "../math/math.h"
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+#include "../math/own_math.h"
 
 // Vertex and Fragment Shader source code
 const char* vertexShaderSource = R"(
@@ -205,16 +202,17 @@ void Renderer::render() {
 
 bool Renderer::is_point_in_frame(const std::vector<float> point, const std::vector<float> camera_pos, const std::vector<float> camera_orientation) {
     // Calculate the vector from the camera to the point
-    Vector3 camera_to_point = {point[0] - camera_pos[0], point[1] - camera_pos[1], point[2] - camera_pos[2]};
+    Vector3 camera_to_point = {point[0] - camera_pos[0],point[1]- camera_pos[1] , point[2] - camera_pos[2]};
     
     // Calculate the dot product with the camera orientation vector
-    Vector3 orientation_vector = {camera_orientation[0], camera_orientation[1], camera_orientation[2]};
+    Vector3 orientation_vector = {-camera_orientation[0], camera_orientation[1], camera_orientation[2]};
     
     float dot_product = dotProduct(camera_to_point, orientation_vector);
     
     // If the dot product is negative, the point is behind the camera
-    return 1;
+    return  (dot_product > 0);
 }
+
 
 void Renderer::hand_data_to_shader(std::vector<float> triangleData,    std::vector<float> pointData){
     for (const std::array<int,3>& index : *index_buffer) {
