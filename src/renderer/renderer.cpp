@@ -17,7 +17,7 @@ layout(location = 1) in vec3 color;
 out vec3 fragColor;
 void main() {
     fragColor = color;
-    gl_PointSize = 20.0; // For rendering vertices as points
+    gl_PointSize = 1.0; // For rendering vertices as points
     gl_Position = vec4(position, 0.0, 1.0);
 }
 )";

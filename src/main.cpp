@@ -86,7 +86,6 @@ int main(int argc, char* argv[]) {
             while (SDL_PollEvent(&event)) {
                 
                 auto data=physicsEngine.handleEvent(event);
-                std::cout << "Event handled" << std::endl;
                 switch (std::get<0>(data))
                 {
                     case terminate:
@@ -100,7 +99,6 @@ int main(int argc, char* argv[]) {
                         break;
                 }
             }
-            std::cout << "Events handled" << std::endl;
 
             
 
@@ -112,10 +110,8 @@ int main(int argc, char* argv[]) {
             lastMoveTime = currentTime;
             
             physicsEngine.update();
-            std::cout << "Physics Engine updated" << std::endl;
             // Render your objects using your renderer which should now be utilizing OpenGL calls
             renderer.render();
-            std::cout << "Renderer rendered" << std::endl;
 
             // Swap the OpenGL buffers
             SDL_GL_SwapWindow(window);
@@ -177,8 +173,7 @@ void populate_szene(std::shared_ptr<std::vector<std::shared_ptr<Object>>> object
         std::cout << "Floor initialized" << std::endl;
 
         
-         index_buffer =
-            std::make_shared<std::vector<std::array<int,3>>>(std::vector<std::array<int,3>>{{3, 10, 87}});//*/
+        index_buffer.get()->push_back(std::array<int,3>{{3, 10, 87}});//*/
         std::string objText;
         std::string mtlText;
             try
@@ -216,9 +211,9 @@ void populate_szene(std::shared_ptr<std::vector<std::shared_ptr<Object>>> object
                 255, 255, 255, // Color (white)
                 "spoon" // Name
             );
+            int first_index = -1;
             for (const auto& vertex : result.first) {
                 // Create a Vertex object for each vertex in the spoon model
-                std::cout << "Adding vertex: " << vertex.pos.x << ", " << vertex.pos.y << ", " << vertex.pos.z << std::endl;
                 std::shared_ptr<Vertex> v = std::make_shared<Vertex>(
                     std::vector<float>{vertex.pos.x, vertex.pos.y, vertex.pos.z},
                     std::vector<float>{0, 0, 0}, // Orientation
@@ -228,7 +223,22 @@ void populate_szene(std::shared_ptr<std::vector<std::shared_ptr<Object>>> object
                     static_cast<uint8_t>(vertex.norm.x * 255), // Color B
                     "spoon_vertex"
                 );
+                if(first_index == -1) {
+                    first_index = v.get()->id; // Store the ID of the first vertex
+                }
+                v.get()->id;
                 spoon.add_child(v);
+            }
+            for (size_t i = 0; i < result.second.size(); i += 3) {
+                // Create an index triplet for the spoon model
+                std::array<int, 3> index_triplet = {
+                    first_index + result.second[i],
+                    first_index + result.second[i + 1],
+                    first_index + result.second[i + 2]
+                };
+                if(i%100 == 0) std::cout << "Adding index triplet: " << index_triplet[0] << ", " << index_triplet[1] << ", " << index_triplet[2] << std::endl;
+
+                index_buffer->push_back(index_triplet);
             }
         objects->push_back(std::make_shared<Object>(spoon));
         }
