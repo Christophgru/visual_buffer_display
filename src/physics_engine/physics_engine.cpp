@@ -116,43 +116,48 @@ void PhysicsEngine::update() {
                 glViewport(0, 0, event.window.data1, event.window.data2); // Update the OpenGL viewport on resize
                 return {window_resize,{event.window.data1,event.window.data2}};
                 break;
-            case SDL_EVENT_KEY_DOWN:
-                // Example: WASD movement
-                if (event.key.scancode == SDL_SCANCODE_W) {
-                    // Move forward or update camera position relative to caymera orientation
-                    printf("w detected\n");
-                    auto new_position= calculate_new_position(camera->pos,camera->orientation,{0,1,0},1.0f);
-                   
-                    camera->pos =new_position;
-                    break;
-                } else if (event.key.scancode == SDL_SCANCODE_A) {
-                    // Move left
-                    printf("a detected\n");
-                    auto new_position= calculate_new_position(camera->pos,camera->orientation,{-1,0,0},1.0f);
-                   
-                    camera->pos =new_position;
-                } else if (event.key.scancode == SDL_SCANCODE_S) {
-                    // Move backward
-                    printf("s detected\n");
-                    auto new_position= calculate_new_position(camera->pos,camera->orientation,{0,-1,0},1.0f);
-                   
-                    camera->pos =new_position;
-                } else if (event.key.scancode == SDL_SCANCODE_D) {
-                    // Move right
-                    printf("d detected\n");	
-                    auto new_position= calculate_new_position(camera->pos,camera->orientation,{1,0,0},1.0f);
-                   
-                    camera->pos =new_position;
+            case SDL_EVENT_KEY_DOWN: {
+                    // Example: WASD movement
+                    float time_passed=SDL_GetTicks()-lastMoveTime;
+                    float speed=5.0f;
+                    float moving_dist=time_passed/1000.0f*speed; // Time in seconds
+
+                    if (event.key.scancode == SDL_SCANCODE_W) {
+                        // Move forward or update camera position relative to caymera orientation
+                        printf("w detected\n");
+                        auto new_position= calculate_new_position(camera->pos,camera->orientation,{0,1,0},moving_dist);
+                    
+                        camera->pos =new_position;
+                        break;
+                    } else if (event.key.scancode == SDL_SCANCODE_A) {
+                        // Move left
+                        printf("a detected\n");
+                        auto new_position= calculate_new_position(camera->pos,camera->orientation,{-1,0,0},moving_dist);
+
+                        camera->pos =new_position;
+                    } else if (event.key.scancode == SDL_SCANCODE_S) {
+                        // Move backward
+                        printf("s detected\n");
+                        auto new_position= calculate_new_position(camera->pos,camera->orientation,{0,-1,0},moving_dist);
+                    
+                        camera->pos =new_position;
+                    } else if (event.key.scancode == SDL_SCANCODE_D) {
+                        // Move right
+                        printf("d detected\n");
+                        auto new_position= calculate_new_position(camera->pos,camera->orientation,{1,0,0},moving_dist);
+
+                        camera->pos =new_position;
+                    }
                 }
                 break;
                 case SDL_EVENT_MOUSE_BUTTON_DOWN:
-                if (event.button.button == SDL_BUTTON_LEFT) {
-                    // Handle left mouse click (e.g., selecting an object)
-                    printf("left mouseclick down detected\n");
-                    printf("first coords: %f %f \n",event.motion.x,event.motion.y);
-                    mouse_movement={event.motion.x,event.motion.y};
-                    mouse_clicked=true;
-                }
+                    if (event.button.button == SDL_BUTTON_LEFT) {
+                        // Handle left mouse click (e.g., selecting an object)
+                        printf("left mouseclick down detected\n");
+                        printf("first coords: %f %f \n",event.motion.x,event.motion.y);
+                        mouse_movement={event.motion.x,event.motion.y};
+                        mouse_clicked=true;
+                    }
                 break;
             case SDL_EVENT_MOUSE_BUTTON_UP:
                 if (event.button.button == SDL_BUTTON_LEFT) {

@@ -32,3 +32,8 @@
 *.app
 
 !external/glew/lib/glew32s.lib
+
+
+!external\newell_teaset\spoon.obj
+!external\newell_teaset\teapot.obj
+!external\newell_teaset\teacup.obj

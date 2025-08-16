@@ -9,6 +9,9 @@
 struct Vector3 {
     float x, y, z;
 };
+struct Vector2 {
+    float x, y;
+};
 float dotProduct(const Vector3 a, const Vector3 b) ;
 
 
