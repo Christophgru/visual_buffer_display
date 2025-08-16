@@ -181,11 +181,24 @@ void PhysicsEngine::update() {
                     diff_x=diff_x/display_width*sensityfity/2.0f*pi;
                     diff_y=-diff_y/display_height*sensityfity/2.0f*pi;
                     printf("difference= %f %f \n",diff_x,diff_y);
-                    Vector3 orientation={ camera->orientation[0],
-                    camera->orientation[1],
-                    camera->orientation[2] };
-                    Matrix3 rot_matrix = create_rot_matrix(diff_y, 0.0f, diff_x);
+                    Vector3 orientation = { camera->orientation[0],
+                        camera->orientation[1],
+                        camera->orientation[2] };
+
+                    // Compute current heading from orientation (same formula you use elsewhere)
+                    float camYawDeg = -atan2f(orientation.y, orientation.x) * 180.0f / M_PI + 90.0f;
+
+                    // When looking backwards (|yaw| > 90°), invert pitch input so mouse Y stays consistent
+                    float pitchDeg = (fabsf(camYawDeg) > 90.0f) ? -diff_y : diff_y;
+
+                    // Keep yaw as before; roll stays 0
+                    Matrix3 rot_matrix = create_rot_matrix(pitchDeg, 0.0f, diff_x);
+
                     Vector3 new_orientation = multiplyMatrixVector(rot_matrix, orientation);
+
+                    // (optional but recommended) renormalize to avoid drift
+                    new_orientation = normalize(new_orientation);
+
 
                     camera->orientation={new_orientation.x,new_orientation.y,new_orientation.z};
                     printf("orientation_after: %f %f %f \n",camera->orientation[0],camera->orientation[1],camera->orientation[2]);

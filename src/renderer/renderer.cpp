@@ -210,7 +210,7 @@ bool Renderer::is_point_in_frame(const std::vector<float> point, const std::vect
     float dot_product = dotProduct(camera_to_point, orientation_vector);
     
     // If the dot product is negative, the point is behind the camera
-    return  (dot_product > 0);
+    return  1;
 }
 
 
@@ -289,8 +289,26 @@ std::array<float,2> Renderer::project(std::vector<float> pos, std::vector<float>
     float relative_elev = -atan2(pos[2] - camera_pos[2], sqrt(pow(pos[0] - camera_pos[0],2) + pow(pos[1] - camera_pos[1],2))) * 180.0f / M_PI;
     float relative_azimuth = -atan2(pos[1] - camera_pos[1], pos[0] - camera_pos[0]) * 180.0f / M_PI + 90.0f;
     
-    // Calculate screen-space coordinates (in pixels)
-    float screenX = width / 2.0f + (relative_azimuth + camera_azimuth) / camera->fov_width_deg * width / 1000.0f;
+    float az_for_screen = relative_azimuth + camera_azimuth;
+    if (fabsf(camera_azimuth) > 90.0f) {
+        // Use shortest signed angle between point and camera heading
+        float dYaw = relative_azimuth + camera_azimuth;
+        // wrap to [-180, 180]
+        while (dYaw > 180.0f)  dYaw -= 360.0f;
+        while (dYaw < -180.0f) dYaw += 360.0f;
+        az_for_screen = dYaw;  // only in the >±90° case
+    }
+    float el_for_screen = relative_elev + camara_elev;
+    if (fabsf(camera_azimuth) > 90.0f) {
+        // Use shortest signed pitch difference to avoid flip when heading past ±90°
+        float dPit = relative_elev - camara_elev;
+        while (dPit > 180.0f)  dPit -= 360.0f;
+        while (dPit < -180.0f) dPit += 360.0f;
+        el_for_screen = dPit;
+    }
+
+
+    float screenX = width / 2.0f + (az_for_screen) / camera->fov_width_deg * width / 1000.0f;
     float screenY = height / 2.0f + (relative_elev + camara_elev) / camera->fov_height_deg * height / 1000.0f;
 
     // Convert screen-space coordinates to NDC: 
