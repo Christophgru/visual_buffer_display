@@ -27,7 +27,7 @@ protected:
     std::vector<float> orientation;
     std::vector<float> scale;
     uint8_t r, g, b; // Color
-    std::vector<Object> children={}; // Children objects
+    std::shared_ptr<std::vector<std::shared_ptr<Object>>> children = std::make_shared<std::vector<std::shared_ptr<Object>>>(); // Children objects
 
 public:
     const int id;
@@ -39,9 +39,9 @@ public:
 
     std::vector<float> get_coords() ;
     std::array<uint8_t,3> get_color();
-    void add_child(Object child) ;
+    void add_child(std::shared_ptr<Object> child) ;
 
-    std::shared_ptr<std::vector<Object>> get_children();
+    std::shared_ptr<std::vector<std::shared_ptr<Object>>> get_children() ; 
     std::string get_name() ;// Get the name of the object
     bool in_frame=true; // Flag to indicate if the object is in the frame
 

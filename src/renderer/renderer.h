@@ -14,11 +14,15 @@
 #include "../shapes/triangle.h"
 #include "../shapes/vertex.h"
 #include "../camera/camera.h"
-
+#include <unordered_map>
+using ObjSP   = std::shared_ptr<Object>;
+using ObjVec  = std::vector<ObjSP>;
+using ObjVecP = std::shared_ptr<ObjVec>;
+using IdMap   = std::unordered_map<int, std::weak_ptr<Object>>; // non-owning
 class Renderer {
 public:
     Renderer(SDL_Window* window, int width, int height, 
-             std::shared_ptr<std::vector<Object*>> shapes, 
+             std::shared_ptr<std::vector<std::shared_ptr<Object>>> shapes, 
              std::shared_ptr<Camera> camera,
              std::shared_ptr<std::vector<std::array<int, 3>>> index_buffer);
     ~Renderer();
@@ -39,12 +43,15 @@ public:
 private:
 bool is_point_in_frame(const std::vector<float> point, const std::vector<float> camera_pos, const std::vector<float> camera_orientation);
 void hand_data_to_shader(std::vector<float> triangleData,    std::vector<float> pointData);
+void hand_data_to_shader(std::vector<float> triangleData,
+                                   std::vector<float> pointData,
+                                   const IdMap& idMap);
     std::array<float, 2> project(std::vector<float> pos,
                                  std::vector<float> camera_orientation,
                                  std::vector<float> camera_pos);
     
     // Data shared with the rest of your project
-    std::shared_ptr<std::vector<Object*>> shapes;
+    std::shared_ptr<std::vector<std::shared_ptr<Object>>> shapes;
     std::shared_ptr<std::vector<std::array<int, 3>>> index_buffer;
     std::shared_ptr<Camera> camera;
 

@@ -21,11 +21,11 @@ Object::Object(std::vector<float> pos, std::vector<float> orientation, std::vect
     std::array<uint8_t,3> Object::get_color() { 
         return {r, g, b}; 
     }
-    void Object::add_child(Object child) { 
-        children.push_back(child); 
+    void Object::add_child(std::shared_ptr<Object> child) { 
+        children->push_back(child); 
     } // Add a child object
-std::shared_ptr<std::vector<Object>> Object::get_children() { 
-        return std::make_shared<std::vector<Object>>(children); 
+    std::shared_ptr<std::vector<std::shared_ptr<Object>>> Object::get_children() { 
+        return children; 
     } // Get children objects
 
 ShapeType Object::get_shape_type() { return shape_type; }

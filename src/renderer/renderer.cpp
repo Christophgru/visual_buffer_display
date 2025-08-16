@@ -75,7 +75,7 @@ GLuint Renderer::createShaderProgram(const char* vertexSource, const char* fragm
 }
 
 Renderer::Renderer(SDL_Window* window, int width, int height, 
-    std::shared_ptr<std::vector<Object*>> shapes,
+    std::shared_ptr<std::vector<std::shared_ptr<Object>>> shapes,
     std::shared_ptr<Camera> camera,
     std::shared_ptr<std::vector<std::array<int,3>>> index_buffer)
     : width(width), height(height), shapes(shapes), camera(camera), index_buffer(index_buffer)
@@ -99,6 +99,16 @@ Renderer::Renderer(SDL_Window* window, int width, int height,
     glGenBuffers(1, &VBO);
 }
 
+
+static void flattenInto(const ObjSP& obj, const ObjVecP& out) {
+    out->push_back(obj);
+    const auto& children = obj->get_children(); // shared_ptr<vector<shared_ptr<Object>>>
+    if (!children) return;
+    out->reserve(out->size() + children->size());
+    for (const auto& ch : *children) {
+        flattenInto(ch, out);
+    }
+}
 // In this OpenGL version, we build a vertex array (positions + colors) from the shapes.
 // For simplicity, we assume all shapes are rendered as triangles in normalized device coordinates.
 // You’ll need to convert your shape coordinates (which are in screen space) into NDC.
@@ -113,20 +123,19 @@ void Renderer::render() {
     std::vector<float> triangleData;
     std::vector<float> pointData;
     //flatten  tree of shapes into list of object references
-    std::vector<Object*> flatShapes;
-    std::function<void(Object*)> flatten = [&](Object* obj) {
-        flatShapes.push_back(obj);
-        const auto& children = obj->get_children();
-        for (size_t i = 0; i < children->size(); ++i) {
-            flatten(&children.get()->at(i)); // Use get() to access the underlying vector
-        }
-    };
-    for (Object* shape : *shapes) {
-        flatten(shape);
-    }
 
-    // Process each shape in the scene.
-    for (Object* shape : flatShapes) {
+
+   // If your roots are shared_ptr<Object>
+    ObjVecP flat = std::make_shared<ObjVec>();
+    for (const auto& root : *shapes) flattenInto(root, flat);
+
+    // id -> weak_ptr so we don’t extend lifetimes
+    IdMap idMap;
+    idMap.reserve(flat->size());
+    for (const auto& sp : *flat) idMap.emplace(sp->id, sp);
+
+    // Iterate the *flattened* list so child vertices get added to pointData
+    for (const auto& shape : *flat) {
         // Common color data.
         
         //print orientation of camera
@@ -140,7 +149,7 @@ void Renderer::render() {
       
 
         if (shape->get_shape_type() == RECTANGLE) {
-            auto rect = static_cast<Rect*>(shape);
+            auto rect = static_cast<Rect*>(shape.get());
             auto pos = rect->get_coords();
             float w = rect->get_width();
             float h = rect->get_height();
@@ -159,7 +168,7 @@ void Renderer::render() {
             triangleData.insert(triangleData.end(), { x, y - ndcH, r, g, b });
         }
         else if (shape->get_shape_type() == CIRCLE) {
-            auto circle = static_cast<Circle*>(shape);
+            auto circle = static_cast<Circle*>(shape.get());
             auto pos = circle->get_coords();
             float radius = circle->get_radius();
             float cx = (pos[0] / width) * 2.0f - 1.0f;
@@ -180,7 +189,7 @@ void Renderer::render() {
             if(shape->in_frame==false){
                 continue; // Skip shapes that are not in the frame
             }
-            auto triangle = static_cast<Triangle*>(shape);
+            auto triangle = static_cast<Triangle*>(shape.get());
             auto pos = triangle->get_coords();
             float size = triangle->get_size();
             float x = (pos[0] / width) * 2.0f - 1.0f;
@@ -196,7 +205,7 @@ void Renderer::render() {
                 continue; // Skip shapes that are not in the frame
             }
             // For vertices, use the camera's orientation and position to project.
-            auto vertex = static_cast<Vertex*>(shape);
+            auto vertex = static_cast<Vertex*>(shape.get());
             auto pos = vertex->get_coords();
             // Use your custom projection function.
             std::array<float,2> coords = project(pos, camera->orientation, camera->pos);
@@ -211,8 +220,73 @@ void Renderer::render() {
     // Now process the index_buffer to draw triangles based on shape ids.
     // For each index triplet, find the corresponding shapes, project their coordinates,
     // and add a triangle with per-vertex colors.
-    hand_data_to_shader(triangleData, pointData);
+    hand_data_to_shader(triangleData, pointData, idMap);
 }
+
+void Renderer::hand_data_to_shader(std::vector<float> triangleData,
+                                   std::vector<float> pointData,
+                                   const IdMap& idMap)
+{
+    auto getObj = [&](int id) -> std::shared_ptr<Object> {
+        auto it = idMap.find(id);
+        if (it == idMap.end())
+            throw std::runtime_error("Object not found for given index: " + std::to_string(id));
+        auto sp = it->second.lock();
+        if (!sp)
+            throw std::runtime_error("Indexed object expired: " + std::to_string(id));
+        return sp;
+    };
+
+    for (const std::array<int,3>& idx : *index_buffer) {
+        auto s1 = getObj(idx[0]);
+        auto s2 = getObj(idx[1]);
+        auto s3 = getObj(idx[2]);
+
+        auto p1 = project(s1->get_coords(), camera->orientation, camera->pos);
+        auto p2 = project(s2->get_coords(), camera->orientation, camera->pos);
+        auto p3 = project(s3->get_coords(), camera->orientation, camera->pos);
+
+        auto c1 = s1->get_color(); auto c2 = s2->get_color(); auto c3 = s3->get_color();
+        float r1=c1[0]/255.f,g1=c1[1]/255.f,b1=c1[2]/255.f;
+        float r2=c2[0]/255.f,g2=c2[1]/255.f,b2=c2[2]/255.f;
+        float r3=c3[0]/255.f,g3=c3[1]/255.f,b3=c3[2]/255.f;
+
+        triangleData.insert(triangleData.end(), {
+            p1[0], p1[1], r1, g1, b1,
+            p2[0], p2[1], r2, g2, b2,
+            p3[0], p3[1], r3, g3, b3
+        });
+    }
+
+    // --- draw triangles (same as your original) ---
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    if (!triangleData.empty()) {
+        glBufferData(GL_ARRAY_BUFFER, triangleData.size()*sizeof(float), triangleData.data(), GL_DYNAMIC_DRAW);
+        GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
+        glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)0);
+        glEnableVertexAttribArray(posAttrib);
+        GLint colAttrib = glGetAttribLocation(shaderProgram, "color");
+        glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)(2*sizeof(float)));
+        glEnableVertexAttribArray(colAttrib);
+        glDrawArrays(GL_TRIANGLES, 0, triangleData.size()/5);
+    }
+
+    // --- draw points (same as your original) ---
+    if (!pointData.empty()) {
+        glBufferData(GL_ARRAY_BUFFER, pointData.size()*sizeof(float), pointData.data(), GL_DYNAMIC_DRAW);
+        GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
+        glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)0);
+        glEnableVertexAttribArray(posAttrib);
+        GLint colAttrib = glGetAttribLocation(shaderProgram, "color");
+        glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)(2*sizeof(float)));
+        glEnableVertexAttribArray(colAttrib);
+        glDrawArrays(GL_POINTS, 0, pointData.size()/5);
+    }
+    glBindVertexArray(0);
+}
+
+
 
 bool Renderer::is_point_in_frame(const std::vector<float> point, const std::vector<float> camera_pos, const std::vector<float> camera_orientation) {
     // Calculate the vector from the camera to the point
@@ -233,13 +307,13 @@ void Renderer::hand_data_to_shader(std::vector<float> triangleData,    std::vect
         Object* shape1 = nullptr;
         Object* shape2 = nullptr;
         Object* shape3 = nullptr;
-        for (Object* shape : *shapes) {
+        for (const auto& shape : *shapes) {
             if (shape->id == index[0])
-                shape1 = shape;
+                shape1 = shape.get();
             else if (shape->id == index[1])
-                shape2 = shape;
+                shape2 = shape.get();
             else if (shape->id == index[2])
-                shape3 = shape;
+                shape3 = shape.get();
         }
         if (!shape1 || !shape2 || !shape3) {
             throw std::runtime_error("Object not found for given index");

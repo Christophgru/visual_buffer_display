@@ -13,7 +13,7 @@ enum detected_actions{
 
 class PhysicsEngine {
 private:
-    std::shared_ptr<std::vector<Object*>> shapes;
+    std::shared_ptr<std::vector<std::shared_ptr<Object>>> shapes;
     Renderer& renderer;
     Uint64 lastMoveTime=SDL_GetTicks();
     std::shared_ptr<Camera> camera;
@@ -22,7 +22,7 @@ private:
     std::tuple<int,int> display_dimensions;
     std::vector<float> calculate_new_position(std::vector<float> pos, std::vector<float> orientation, std::vector<float> direction, float speed) ;
 public:
-    PhysicsEngine(std::shared_ptr<std::vector<Object*>> shapes, Renderer& renderer, std::shared_ptr<Camera> camera, std::tuple<int,int> display_dimensions) : display_dimensions(display_dimensions), camera(camera), shapes(shapes), renderer(renderer) {
+    PhysicsEngine(std::shared_ptr<std::vector<std::shared_ptr<Object>>> shapes, Renderer& renderer, std::shared_ptr<Camera> camera, std::tuple<int,int> display_dimensions) : display_dimensions(display_dimensions), camera(camera), shapes(shapes), renderer(renderer) {
         // Initialize the physics engine
     }
     ~PhysicsEngine() {

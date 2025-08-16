@@ -17,7 +17,7 @@
 //#include <SDL_mouse_c.h>
 
 int main(int argc, char* argv[]) {
-    printf("Hello, World!\n");
+    printf("Starting program...\n");
 
     try {
         int WIDTH = 800;
@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
             SDL_Log("SDL could not initialize! SDL_Error: %s", SDL_GetError());
             return -1;
         }
+        printf("SDL initialized successfully.\n");
 
         // Create an SDL window with the SDL_WINDOW_OPENGL flag
         SDL_Window* window = SDL_CreateWindow("Pixel Buffer Renderer",
@@ -38,6 +39,7 @@ int main(int argc, char* argv[]) {
             SDL_Quit();
             return -1;
         }
+        printf("SDL window created successfully.\n");
 
         // Create an OpenGL context for the window
         SDL_GLContext glContext = SDL_GL_CreateContext(window);
@@ -50,33 +52,39 @@ int main(int argc, char* argv[]) {
 
         // Set up the OpenGL viewport
         glViewport(0, 0, WIDTH, HEIGHT);
+        printf("OpenGL viewport set up successfully.\n");
+
         // Create shapes (your current objects)
-        auto objects = std::make_shared<std::vector<Object*>>(std::initializer_list<Object*>{
-              // Red rectangle
-            new Circle({400, 300,0},{0,0,0},{1,1,1}, 50, 0, 255, 0),         // Green circle
-            new Triangle({600, 400,0},{0,0,0},{1,1,1}, 60, 0, 0, 255),       // Blue triangle
-        });
-        objects->push_back(
-            new Rect({100, 100,0},{0,0,0},{1,1,1}, 50, 50, 255, 0, 0) // Red rectangle
-            ); // Red Rect
+        auto objects = std::make_shared<std::vector<std::shared_ptr<Object>>>();
+        // Green circle
+        objects->push_back(std::shared_ptr<Object>(new Circle({400, 300,0},{0,0,0},{1,1,1}, 50, 0, 255, 0)));
+        // Blue triangle
+        //objects->push_back(std::shared_ptr<Object>(new Triangle({100, 50,0},{0,0,0},{1,1,1}, 60, 0, 0, 255)));
+        // Red rectangle
+        objects->push_back(std::shared_ptr<Object>(new Rect({100, 100,0},{0,0,0},{1,1,1}, 50, 50, 255, 0, 0))); // Red Rect
         // Add a vertex that comes from straight ahead
-       /* for (float i = -5; i <= 5; i++) {
+        for (float i = -5; i <= 5; i++) {
             for (float j = -5; j <= 5; j++) {
-                objects->push_back(new Vertex({i, 80, j}, {0,0,0}, {1,1,1},
+                objects->push_back(std::make_shared<Vertex>(std::vector<float>{i, 80, j}, std::vector<float>{0,0,0}, std::vector<float>{1,1,1},
                                                (int)(255 - i) % 255,
                                                (int)(255 + j) % 255,
                                                (int)(255 + i - j) % 255,"moving_over")); // Yellow vertex
             }
-        }*/
+        }//*/
         // Add a vertex that tiles the floor
-        for (float i = -10; i <= 10; i+=0.1) {
+      std::shared_ptr<Object> floor = std::make_shared<Object>(Object({0, 0, -2}, {0, 0, 0}, {1, 1, 1}, 255, 255, 0, "floor"));
+        objects->push_back(floor);
+        for (float i = -10; i <= 10; i+=0.1) {            
             for (float j = -10; j <= 10; j+=0.1) {
-                objects->push_back(new Vertex({i, j, -2}, {0,0,0}, {1,1,1},
+                 std::shared_ptr<Object> vx = std::make_shared<Vertex>(std::vector<float>{i, j, -2}, std::vector<float>{0,0,0}, std::vector<float>{1,1,1},
                                                (int)(255 - i) % 255,
                                                (int)(255 + j) % 255,
-                                               (int)(255 + i - j) % 255,"floor")); // Yellow vertex
+                                               (int)(255 + i - j) % 255,"floor"); // Yellow vertex
+                floor->add_child(vx);
             }
         }
+        std::cout << "Floor initialized" << std::endl;
+
         
         std::shared_ptr<std::vector<std::array<int,3>>> index_buffer =
             std::make_shared<std::vector<std::array<int,3>>>(std::vector<std::array<int,3>>{{3, 10, 87}});//*/
@@ -84,8 +92,10 @@ int main(int argc, char* argv[]) {
         auto camera = std::make_shared<Camera>(std::vector<float>{0, 0, 0},
                                                std::vector<float>{0, 100, 0},
                                                 40);
+        std::cout << "Camera initialized" << std::endl;
         // Initialize your renderer (ensure it is adapted to use OpenGL if needed)
         Renderer renderer(window, WIDTH, HEIGHT, objects, camera, index_buffer);
+        std::cout << "Renderer initialized" << std::endl;
 
         bool running = true;
         SDL_Event event;
@@ -94,11 +104,13 @@ int main(int argc, char* argv[]) {
         float frameCount = 0;
         PhysicsEngine physicsEngine(objects, renderer, camera,{WIDTH,HEIGHT});
         //SDL_SetRelativeMouseMode(true);
+        std::cout << "Physics Engine initialized" << std::endl; 
 
         while (running) {
             while (SDL_PollEvent(&event)) {
                 
                 auto data=physicsEngine.handleEvent(event);
+                std::cout << "Event handled" << std::endl;
                 switch (std::get<0>(data))
                 {
                     case terminate:
@@ -112,6 +124,8 @@ int main(int argc, char* argv[]) {
                         break;
                 }
             }
+            std::cout << "Events handled" << std::endl;
+
             
 
             // Clear the screen using OpenGL (black background)
@@ -122,9 +136,10 @@ int main(int argc, char* argv[]) {
             lastMoveTime = currentTime;
             
             physicsEngine.update();
-
+            std::cout << "Physics Engine updated" << std::endl;
             // Render your objects using your renderer which should now be utilizing OpenGL calls
             renderer.render();
+            std::cout << "Renderer rendered" << std::endl;
 
             // Swap the OpenGL buffers
             SDL_GL_SwapWindow(window);
@@ -141,6 +156,7 @@ int main(int argc, char* argv[]) {
         // Cleanup OpenGL context and SDL resources
         SDL_DestroyWindow(window);
         SDL_Quit();
+        printf("Program terminated successfully.\n");
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "Exception: " << e.what() << std::endl;
