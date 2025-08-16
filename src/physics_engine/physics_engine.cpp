@@ -68,12 +68,12 @@ void PhysicsEngine::update() {
         auto time= SDL_GetTicks();
         float deltaTime = (time - lastMoveTime) / 1000.0f*20.0f; // Time in seconds
         lastMoveTime = time;
-        //float camera_decceleration=0.5f;
-        //printf("camera pos: %f %f %f \n",camera->pos.at(0),camera->pos.at(1),camera->pos.at(2));
-        //camera->pos={camera->pos.at(0)+deltaTime*camera->velocity.at(0),camera->pos.at(1),camera->pos.at(2)};
-        //float camera_decceleration_resulting=(1-1/pow((deltaTime*camera_decceleration+1.0f),2.0f));
-        //camera->velocity={camera->velocity.at(0)*camera_decceleration_resulting,camera->velocity.at(1)*camera_decceleration_resulting,camera->velocity.at(2)*camera_decceleration_resulting};
-        for (auto shape : *shapes) {
+        //float scene->camera_decceleration=0.5f;
+        //printf("scene->camera pos: %f %f %f \n",scene->camera->pos.at(0),scene->camera->pos.at(1),scene->camera->pos.at(2));
+        //scene->camera->pos={scene->camera->pos.at(0)+deltaTime*scene->camera->velocity.at(0),scene->camera->pos.at(1),scene->camera->pos.at(2)};
+        //float scene->camera_decceleration_resulting=(1-1/pow((deltaTime*scene->camera_decceleration+1.0f),2.0f));
+        //scene->camera->velocity={scene->camera->velocity.at(0)*scene->camera_decceleration_resulting,scene->camera->velocity.at(1)*scene->camera_decceleration_resulting,scene->camera->velocity.at(2)*scene->camera_decceleration_resulting};
+        for (auto shape : *scene->get_objects()) {
             // If shape is a vertex, update the position until its behind origin, then reset it to 100
             if(shape->get_shape_type()==VERTEX){
               //use strcmp  if(shape->get_name()=="moving_over"){
@@ -87,8 +87,8 @@ void PhysicsEngine::update() {
                 shape->move(5*deltaTime, 5*deltaTime,0);
             };
             auto pos = shape->get_coords();
-            // check if pos is behind the camera
-            // If the point is behind the camera, make it invisible
+            // check if pos is behind the scene->camera
+            // If the point is behind the scene->camera, make it invisible
             
             // Update the renderer with the new position of the shape
             
@@ -112,7 +112,7 @@ void PhysicsEngine::update() {
                 break;
             case SDL_EVENT_WINDOW_RESIZED:
                 printf("window resize detected\n");
-                renderer.resize(event.window.data1, event.window.data2);
+                renderer->resize(event.window.data1, event.window.data2);
                 glViewport(0, 0, event.window.data1, event.window.data2); // Update the OpenGL viewport on resize
                 return {window_resize,{event.window.data1,event.window.data2}};
                 break;
@@ -123,30 +123,30 @@ void PhysicsEngine::update() {
                     float moving_dist=time_passed/1000.0f*speed; // Time in seconds
 
                     if (event.key.scancode == SDL_SCANCODE_W) {
-                        // Move forward or update camera position relative to caymera orientation
+                        // Move forward or update scene->camera position relative to caymera orientation
                         printf("w detected\n");
-                        auto new_position= calculate_new_position(camera->pos,camera->orientation,{0,1,0},moving_dist);
+                        auto new_position= calculate_new_position(scene->camera->pos,scene->camera->orientation,{0,1,0},moving_dist);
                     
-                        camera->pos =new_position;
+                        scene->camera->pos =new_position;
                         break;
                     } else if (event.key.scancode == SDL_SCANCODE_A) {
                         // Move left
                         printf("a detected\n");
-                        auto new_position= calculate_new_position(camera->pos,camera->orientation,{-1,0,0},moving_dist);
+                        auto new_position= calculate_new_position(scene->camera->pos,scene->camera->orientation,{-1,0,0},moving_dist);
 
-                        camera->pos =new_position;
+                        scene->camera->pos =new_position;
                     } else if (event.key.scancode == SDL_SCANCODE_S) {
                         // Move backward
                         printf("s detected\n");
-                        auto new_position= calculate_new_position(camera->pos,camera->orientation,{0,-1,0},moving_dist);
+                        auto new_position= calculate_new_position(scene->camera->pos,scene->camera->orientation,{0,-1,0},moving_dist);
                     
-                        camera->pos =new_position;
+                        scene->camera->pos =new_position;
                     } else if (event.key.scancode == SDL_SCANCODE_D) {
                         // Move right
                         printf("d detected\n");
-                        auto new_position= calculate_new_position(camera->pos,camera->orientation,{1,0,0},moving_dist);
+                        auto new_position= calculate_new_position(scene->camera->pos,scene->camera->orientation,{1,0,0},moving_dist);
 
-                        camera->pos =new_position;
+                        scene->camera->pos =new_position;
                     }
                 }
                 break;
@@ -171,24 +171,24 @@ void PhysicsEngine::update() {
             case SDL_EVENT_MOUSE_MOTION:
                 // event.motion.x and event.motion.y for absolute position,
                 // event.motion.xrel and event.motion.yrel for relative movement
-                // Update camera orientation or object interaction here.
+                // Update scene->camera orientation or object interaction here.
                 if(mouse_clicked){
-                    printf("camera orientation: %f %f %f \n",camera->orientation.at(0),camera->orientation.at(1),camera->orientation.at(2));
+                    printf("scene->camera orientation: %f %f %f \n",scene->camera->orientation.at(0),scene->camera->orientation.at(1),scene->camera->orientation.at(2));
                     float sensityfity=3.0f; // Sensitivity factor for mouse movement
                     float diff_x=event.motion.x-std::get<0>(mouse_movement);
                     float diff_y=event.motion.y-std::get<1>(mouse_movement);
                     printf("difference= %f %f \n",diff_x,diff_y);
-                    printf("orientation_before: %f %f %f \n",camera->orientation[0],camera->orientation[1],camera->orientation[2]);
+                    printf("orientation_before: %f %f %f \n",scene->camera->orientation[0],scene->camera->orientation[1],scene->camera->orientation[2]);
                     int display_width,display_height;
-                    display_width=std::get<0>(display_dimensions);
-                    display_height=std::get<1>(display_dimensions);
+                    display_width=renderer->width;
+                    display_height=renderer->height;
                     printf("window size: %d %d \n",display_width,display_height);
                     diff_x=diff_x/display_width*sensityfity/2.0f*pi;
                     diff_y=-diff_y/display_height*sensityfity/2.0f*pi;
                     printf("difference= %f %f \n",diff_x,diff_y);
-                    Vector3 orientation = { camera->orientation[0],
-                        camera->orientation[1],
-                        camera->orientation[2] };
+                    Vector3 orientation = { scene->camera->orientation[0],
+                        scene->camera->orientation[1],
+                        scene->camera->orientation[2] };
 
                     // Compute current heading from orientation (same formula you use elsewhere)
                     float camYawDeg = -atan2f(orientation.y, orientation.x) * 180.0f / M_PI + 90.0f;
@@ -205,8 +205,8 @@ void PhysicsEngine::update() {
                     new_orientation = normalize(new_orientation);
 
 
-                    camera->orientation={new_orientation.x,new_orientation.y,new_orientation.z};
-                    printf("orientation_after: %f %f %f \n",camera->orientation[0],camera->orientation[1],camera->orientation[2]);
+                    scene->camera->orientation={new_orientation.x,new_orientation.y,new_orientation.z};
+                    printf("orientation_after: %f %f %f \n",scene->camera->orientation[0],scene->camera->orientation[1],scene->camera->orientation[2]);
                     mouse_movement={event.motion.x,event.motion.y};
                             
                 }

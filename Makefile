@@ -11,7 +11,8 @@ SRCS := $(SRC_DIR)/main.cpp \
         $(SRC_DIR)/physics_engine/physics_engine.cpp \
         $(SRC_DIR)/camera/camera.cpp \
         $(SRC_DIR)/shapes/object.cpp \
-        $(SRC_DIR)/math/own_math.cpp
+        $(SRC_DIR)/math/own_math.cpp \
+        $(SRC_DIR)/scene/scene.cpp
 BUILD_DIR := build
 OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS))
 EXEC := $(BUILD_DIR)/buffer_display

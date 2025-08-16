@@ -32,7 +32,7 @@ const char* fragmentShaderSource = R"(
     )";
 
 // Utility function to compile shaders and link a program.
-GLuint Renderer::createShaderProgram(const char* vertexSource, const char* fragmentSource) {
+GLuint SimpleRenderer::createShaderProgram(const char* vertexSource, const char* fragmentSource) {
     // Compile vertex shader
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertexShader, 1, &vertexSource, NULL);
@@ -74,11 +74,9 @@ GLuint Renderer::createShaderProgram(const char* vertexSource, const char* fragm
     return program;
 }
 
-Renderer::Renderer(SDL_Window* window, int width, int height, 
-    std::shared_ptr<std::vector<std::shared_ptr<Object>>> shapes,
-    std::shared_ptr<Camera> camera,
-    std::shared_ptr<std::vector<std::array<int,3>>> index_buffer)
-    : width(width), height(height), shapes(shapes), camera(camera), index_buffer(index_buffer)
+SimpleRenderer::SimpleRenderer(SDL_Window* window, int width, int height, 
+    std::shared_ptr<Scene> scene)
+    : width(width), height(height), scene(scene)
 {
     // Assume an OpenGL context has already been created (with SDL_WINDOW_OPENGL)
     GLenum err = glewInit();
@@ -109,10 +107,10 @@ static void flattenInto(const ObjSP& obj, const ObjVecP& out) {
         flattenInto(ch, out);
     }
 }
-// In this OpenGL version, we build a vertex array (positions + colors) from the shapes.
-// For simplicity, we assume all shapes are rendered as triangles in normalized device coordinates.
+// In this OpenGL version, we build a vertex array (positions + colors) from the scene->get_objects().
+// For simplicity, we assume all scene->get_objects() are rendered as triangles in normalized device coordinates.
 // You’ll need to convert your shape coordinates (which are in screen space) into NDC.
-void Renderer::render() {
+void SimpleRenderer::render() {
     // Clear the screen.
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -122,12 +120,12 @@ void Renderer::render() {
     // Data containers: one for triangles and one for vertices.
     std::vector<float> triangleData;
     std::vector<float> pointData;
-    //flatten  tree of shapes into list of object references
+    //flatten  tree of scene->get_objects() into list of object references
 
 
    // If your roots are shared_ptr<Object>
     ObjVecP flat = std::make_shared<ObjVec>();
-    for (const auto& root : *shapes) flattenInto(root, flat);
+    for (const auto& root : *scene->get_objects()) flattenInto(root, flat);
 
     // id -> weak_ptr so we don’t extend lifetimes
     IdMap idMap;
@@ -139,7 +137,7 @@ void Renderer::render() {
         // Common color data.
         
         //print orientation of camera
-        shape->in_frame=is_point_in_frame(shape->get_coords(),camera->pos,camera->orientation);
+        shape->in_frame=is_point_in_frame(shape->get_coords(),scene->get_camera()->pos,scene->get_camera()->orientation);
 
        
         std::array<uint8_t, 3> colors = shape->get_color();
@@ -187,7 +185,7 @@ void Renderer::render() {
         }
         else if (shape->get_shape_type() == TRIANGLE) {
             if(shape->in_frame==false){
-                continue; // Skip shapes that are not in the frame
+                continue; // Skip scene->get_objects() that are not in the frame
             }
             auto triangle = static_cast<Triangle*>(shape.get());
             auto pos = triangle->get_coords();
@@ -202,13 +200,13 @@ void Renderer::render() {
         }
         else if (shape->get_shape_type() == VERTEX) {
             if(shape->in_frame==false){
-                continue; // Skip shapes that are not in the frame
+                continue; // Skip scene->get_objects() that are not in the frame
             }
             // For vertices, use the camera's orientation and position to project.
             auto vertex = static_cast<Vertex*>(shape.get());
             auto pos = vertex->get_coords();
             // Use your custom projection function.
-            std::array<float,2> coords = project(pos, camera->orientation, camera->pos);
+            std::array<float,2> coords = project(pos, scene->get_camera()->orientation, scene->get_camera()->pos);
             // In this OpenGL version, we simulate drawing a "block" by using a point with an increased size.
             // (Alternatively, you could add several points to form a quad.)
             // Assume 'coords' are already in NDC or convert from screen space if needed.
@@ -218,12 +216,12 @@ void Renderer::render() {
     }
 
     // Now process the index_buffer to draw triangles based on shape ids.
-    // For each index triplet, find the corresponding shapes, project their coordinates,
+    // For each index triplet, find the corresponding scene->get_objects(), project their coordinates,
     // and add a triangle with per-vertex colors.
     hand_data_to_shader(triangleData, pointData, idMap);
 }
 
-void Renderer::hand_data_to_shader(std::vector<float> triangleData,
+void SimpleRenderer::hand_data_to_shader(std::vector<float> triangleData,
                                    std::vector<float> pointData,
                                    const IdMap& idMap)
 {
@@ -237,14 +235,14 @@ void Renderer::hand_data_to_shader(std::vector<float> triangleData,
         return sp;
     };
 
-    for (const std::array<int,3>& idx : *index_buffer) {
+    for (const std::array<int,3>& idx : *scene->get_index_buffer()) {
         auto s1 = getObj(idx[0]);
         auto s2 = getObj(idx[1]);
         auto s3 = getObj(idx[2]);
 
-        auto p1 = project(s1->get_coords(), camera->orientation, camera->pos);
-        auto p2 = project(s2->get_coords(), camera->orientation, camera->pos);
-        auto p3 = project(s3->get_coords(), camera->orientation, camera->pos);
+        auto p1 = project(s1->get_coords(), scene->get_camera()->orientation, scene->get_camera()->pos);
+        auto p2 = project(s2->get_coords(), scene->get_camera()->orientation, scene->get_camera()->pos);
+        auto p3 = project(s3->get_coords(), scene->get_camera()->orientation, scene->get_camera()->pos);
 
         auto c1 = s1->get_color(); auto c2 = s2->get_color(); auto c3 = s3->get_color();
         float r1=c1[0]/255.f,g1=c1[1]/255.f,b1=c1[2]/255.f;
@@ -288,7 +286,7 @@ void Renderer::hand_data_to_shader(std::vector<float> triangleData,
 
 
 
-bool Renderer::is_point_in_frame(const std::vector<float> point, const std::vector<float> camera_pos, const std::vector<float> camera_orientation) {
+bool SimpleRenderer::is_point_in_frame(const std::vector<float> point, const std::vector<float> camera_pos, const std::vector<float> camera_orientation) {
     // Calculate the vector from the camera to the point
     Vector3 camera_to_point = {point[0] - camera_pos[0],point[1]- camera_pos[1] , point[2] - camera_pos[2]};
     
@@ -302,12 +300,12 @@ bool Renderer::is_point_in_frame(const std::vector<float> point, const std::vect
 }
 
 
-void Renderer::hand_data_to_shader(std::vector<float> triangleData,    std::vector<float> pointData){
-    for (const std::array<int,3>& index : *index_buffer) {
+void SimpleRenderer::hand_data_to_shader(std::vector<float> triangleData,    std::vector<float> pointData){
+    for (const std::array<int,3>& index : *scene->get_index_buffer()) {
         Object* shape1 = nullptr;
         Object* shape2 = nullptr;
         Object* shape3 = nullptr;
-        for (const auto& shape : *shapes) {
+        for (const auto& shape : *scene->get_objects()) {
             if (shape->id == index[0])
                 shape1 = shape.get();
             else if (shape->id == index[1])
@@ -319,9 +317,9 @@ void Renderer::hand_data_to_shader(std::vector<float> triangleData,    std::vect
             throw std::runtime_error("Object not found for given index");
         }
         // Project each shape's coordinate using the camera parameters.
-        std::array<float,2> coords1 = project(shape1->get_coords(), camera->orientation, camera->pos);
-        std::array<float,2> coords2 = project(shape2->get_coords(), camera->orientation, camera->pos);
-        std::array<float,2> coords3 = project(shape3->get_coords(), camera->orientation, camera->pos);
+        std::array<float,2> coords1 = project(shape1->get_coords(), scene->get_camera()->orientation, scene->get_camera()->pos);
+        std::array<float,2> coords2 = project(shape2->get_coords(), scene->get_camera()->orientation, scene->get_camera()->pos);
+        std::array<float,2> coords3 = project(shape3->get_coords(), scene->get_camera()->orientation, scene->get_camera()->pos);
         // Get colors for each shape.
         std::array<uint8_t, 3> colors1 = shape1->get_color();
         std::array<uint8_t, 3> colors2 = shape2->get_color();
@@ -340,7 +338,7 @@ void Renderer::hand_data_to_shader(std::vector<float> triangleData,    std::vect
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-    // --- Render triangle-based shapes ---
+    // --- Render triangle-based scene->get_objects() ---
     if (!triangleData.empty()) {
         glBufferData(GL_ARRAY_BUFFER, triangleData.size() * sizeof(float), triangleData.data(), GL_DYNAMIC_DRAW);
         GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
@@ -370,7 +368,7 @@ void Renderer::hand_data_to_shader(std::vector<float> triangleData,    std::vect
     glBindVertexArray(0);
 }
 
-std::array<float,2> Renderer::project(std::vector<float> pos, std::vector<float> camera_orientation, std::vector<float> camera_pos){
+std::array<float,2> SimpleRenderer::project(std::vector<float> pos, std::vector<float> camera_orientation, std::vector<float> camera_pos){
     // Calculate camera and relative angles (in degrees)
     float camara_elev = atan2(camera_orientation[2], sqrt(pow(camera_orientation[0],2) + pow(camera_orientation[1],2))) * 180.0f / M_PI;
     float camera_azimuth = -atan2(camera_orientation[1], camera_orientation[0]) * 180.0f / M_PI + 90.0f;
@@ -398,8 +396,8 @@ std::array<float,2> Renderer::project(std::vector<float> pos, std::vector<float>
     }
 
 
-    float screenX = width / 2.0f + (az_for_screen) / camera->fov_width_deg * width / 1000.0f;
-    float screenY = height / 2.0f + (relative_elev + camara_elev) / camera->fov_height_deg * height / 1000.0f;
+    float screenX = width / 2.0f + (az_for_screen) / scene->get_camera()->fov_width_deg * width / 1000.0f;
+    float screenY = height / 2.0f + (relative_elev + camara_elev) / scene->get_camera()->fov_height_deg * height / 1000.0f;
 
     // Convert screen-space coordinates to NDC: 
     // x_ndc = (screenX / width)*2 - 1, y_ndc = 1 - (screenY / height)*2
@@ -411,21 +409,21 @@ std::array<float,2> Renderer::project(std::vector<float> pos, std::vector<float>
 
 
 
-void Renderer::resize(int newWidth, int newHeight) {
+void SimpleRenderer::resize(int newWidth, int newHeight) {
     width = newWidth;
     height = newHeight;
     // Update the viewport to the new window size.
     glViewport(0, 0, width, height);
 }
 
-int Renderer::getWindowWidth() {
+int SimpleRenderer::getWindowWidth() {
     return width;
 }
-int Renderer::getWindowHeight() {
+int SimpleRenderer::getWindowHeight() {
     return height;
 }
 
-Renderer::~Renderer() {
+SimpleRenderer::~SimpleRenderer() {
     glDeleteProgram(shaderProgram);
     glDeleteBuffers(1, &VBO);
     glDeleteVertexArrays(1, &VAO);

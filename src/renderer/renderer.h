@@ -1,5 +1,4 @@
-#ifndef RENDERER_H
-#define RENDERER_H
+
 #define GLEW_STATIC
 
 #include <windows.h>
@@ -8,24 +7,26 @@
 #include <vector>
 #include <memory>
 #include <array>
-#include "../shapes/object.h"
-#include "../shapes/rectangle.h"
-#include "../shapes/circle.h"
-#include "../shapes/triangle.h"
-#include "../shapes/vertex.h"
-#include "../camera/camera.h"
+#include "shapes/object.h"
+#include "shapes/rectangle.h"
+#include "shapes/circle.h"
+#include "shapes/triangle.h"
+#include "shapes/vertex.h"
+#include "camera/camera.h"
 #include <unordered_map>
+#include "scene/scene.h"
 using ObjSP   = std::shared_ptr<Object>;
 using ObjVec  = std::vector<ObjSP>;
 using ObjVecP = std::shared_ptr<ObjVec>;
 using IdMap   = std::unordered_map<int, std::weak_ptr<Object>>; // non-owning
-class Renderer {
+#ifndef RENDERER_H
+#define RENDERER_H
+
+class SimpleRenderer {
 public:
-    Renderer(SDL_Window* window, int width, int height, 
-             std::shared_ptr<std::vector<std::shared_ptr<Object>>> shapes, 
-             std::shared_ptr<Camera> camera,
-             std::shared_ptr<std::vector<std::array<int, 3>>> index_buffer);
-    ~Renderer();
+    SimpleRenderer(SDL_Window* window, int width, int height, 
+             std::shared_ptr<Scene> scene);
+    ~SimpleRenderer();
 
     
     // Render function that now uses OpenGL for accelerated rendering
@@ -39,6 +40,7 @@ public:
     SDL_Texture* texture;
     std::vector<uint32_t> buffer;
     int width, height;
+    std::shared_ptr<Scene> scene;
     
 private:
 bool is_point_in_frame(const std::vector<float> point, const std::vector<float> camera_pos, const std::vector<float> camera_orientation);
@@ -50,10 +52,6 @@ void hand_data_to_shader(std::vector<float> triangleData,
                                  std::vector<float> camera_orientation,
                                  std::vector<float> camera_pos);
     
-    // Data shared with the rest of your project
-    std::shared_ptr<std::vector<std::shared_ptr<Object>>> shapes;
-    std::shared_ptr<std::vector<std::array<int, 3>>> index_buffer;
-    std::shared_ptr<Camera> camera;
 
     // OpenGL-specific members for hardware-accelerated rendering
     GLuint shaderProgram = 0;
