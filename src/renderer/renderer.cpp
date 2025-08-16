@@ -6,6 +6,8 @@
 #include <array>
 #include <algorithm>
 #include "../math/own_math.h"
+#include <functional>
+#include <iterator>
 
 // Vertex and Fragment Shader source code
 const char* vertexShaderSource = R"(
@@ -110,9 +112,21 @@ void Renderer::render() {
     // Data containers: one for triangles and one for vertices.
     std::vector<float> triangleData;
     std::vector<float> pointData;
+    //flatten  tree of shapes into list of object references
+    std::vector<Object*> flatShapes;
+    std::function<void(Object*)> flatten = [&](Object* obj) {
+        flatShapes.push_back(obj);
+        const auto& children = obj->get_children();
+        for (size_t i = 0; i < children->size(); ++i) {
+            flatten(&children.get()->at(i)); // Use get() to access the underlying vector
+        }
+    };
+    for (Object* shape : *shapes) {
+        flatten(shape);
+    }
 
     // Process each shape in the scene.
-    for (Object* shape : *shapes) {
+    for (Object* shape : flatShapes) {
         // Common color data.
         
         //print orientation of camera
@@ -290,6 +304,8 @@ std::array<float,2> Renderer::project(std::vector<float> pos, std::vector<float>
     float relative_azimuth = -atan2(pos[1] - camera_pos[1], pos[0] - camera_pos[0]) * 180.0f / M_PI + 90.0f;
     
     float az_for_screen = relative_azimuth + camera_azimuth;
+    if (az_for_screen > 180.0f)  az_for_screen -= 360.0f;
+    if (az_for_screen < -180.0f) az_for_screen += 360.0f;
     if (fabsf(camera_azimuth) > 90.0f) {
         // Use shortest signed angle between point and camera heading
         float dYaw = relative_azimuth + camera_azimuth;
